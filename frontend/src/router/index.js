@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import MainLayout from '@/layouts/MainLayout.vue'
 import HomeView from '@/views/HomeView.vue'
 import PostView from '@/views/PostView.vue'
+import SearchView from '@/views/SearchView.vue'
 import ConsoleView from '@/views/ConsoleView.vue'
 import ConsoleOverview from '@/views/ConsoleOverview.vue'
 import ConsoleEditor from '@/views/ConsoleEditor.vue'
@@ -17,6 +18,7 @@ const router = createRouter({
       children: [
         { path: '', name: 'home', component: HomeView },
         { path: 'posts/:slug', name: 'post', component: PostView },
+        { path: 'search', name: 'search', component: SearchView },
       ],
     },
     {

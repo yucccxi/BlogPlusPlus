@@ -10,11 +10,12 @@ import { RouterLink, RouterView } from 'vue-router'
       </div>
 
       <nav class="nav">
-        <RouterLink to="/" class="nav-link" active-class="active">首页</RouterLink>
+        <RouterLink to="/" class="nav-link" exact-active-class="active">首页</RouterLink>
+        <RouterLink to="/search" class="nav-link" active-class="active">搜索</RouterLink>
       </nav>
 
       <div class="sidebar-footer">
-        <p>一个极简的博客</p>
+        <p>By yuchenxi</p>
       </div>
     </aside>
 
