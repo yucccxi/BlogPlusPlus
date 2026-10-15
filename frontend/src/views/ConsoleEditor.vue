@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { authHeaders } from '@/admin'
-import { renderMarkdown, onCodeCopy } from '@/markdown'
+import { renderMarkdown, onMarkdownClick } from '@/markdown'
 
 const route = useRoute()
 const router = useRouter()
@@ -147,7 +147,7 @@ onBeforeRouteLeave(() => {
 
       <section class="pane pane-preview">
         <!-- eslint-disable-next-line vue/no-v-html -->
-        <div class="markdown" v-html="previewHtml" @click="onCodeCopy"></div>
+        <div class="markdown" v-html="previewHtml" @click="onMarkdownClick"></div>
       </section>
     </div>
 
@@ -271,6 +271,10 @@ onBeforeRouteLeave(() => {
 
 .markdown :deep(img) {
   max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 6px;
 }
 
 .markdown :deep(a) {

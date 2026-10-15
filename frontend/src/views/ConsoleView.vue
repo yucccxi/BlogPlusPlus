@@ -86,6 +86,13 @@ onMounted(() => {
         >
           写文章
         </RouterLink>
+        <RouterLink
+          to="/console/files"
+          class="nav-link"
+          :class="{ active: route.name === 'console-files' }"
+        >
+          文件
+        </RouterLink>
       </nav>
 
       <div class="sidebar-footer">

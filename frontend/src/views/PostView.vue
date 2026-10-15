@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { renderMarkdown, onCodeCopy } from '@/markdown'
+import { renderMarkdown, onMarkdownClick } from '@/markdown'
 
 const route = useRoute()
 const post = ref(null)
@@ -33,7 +33,7 @@ function formatDate(value) {
 </script>
 
 <template>
-  <div class="post-page" @click="onCodeCopy">
+  <div class="post-page" @click="onMarkdownClick">
     <p v-if="loading" class="hint">加载中...</p>
     <p v-else-if="error" class="hint error">{{ error }}</p>
 
@@ -121,6 +121,10 @@ function formatDate(value) {
 
 .markdown :deep(img) {
   max-width: 100%;
+  max-height: 420px;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 6px;
 }
 
 .markdown :deep(a) {

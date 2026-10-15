@@ -5,6 +5,7 @@ import PostView from '@/views/PostView.vue'
 import ConsoleView from '@/views/ConsoleView.vue'
 import ConsoleOverview from '@/views/ConsoleOverview.vue'
 import ConsoleEditor from '@/views/ConsoleEditor.vue'
+import ConsoleFiles from '@/views/ConsoleFiles.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -24,6 +25,7 @@ const router = createRouter({
         { path: '', name: 'console-overview', component: ConsoleOverview },
         { path: 'new', name: 'console-new', component: ConsoleEditor },
         { path: 'edit/:id', name: 'console-edit', component: ConsoleEditor },
+        { path: 'files', name: 'console-files', component: ConsoleFiles },
       ],
     },
   ],

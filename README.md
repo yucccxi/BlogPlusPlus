@@ -9,17 +9,22 @@
 | 后端 | Spring Boot 4.x、Spring JDBC、MySQL |
 | 前端 | Vue 3、Vue Router、Vite |
 | 渲染 | marked、highlight.js、KaTeX |
+| 数据库 | MySQL |
 
 ## 功能
 
 - 主页展示已发布文章，右侧「已固定」栏目展示置顶文章
 - 文章详情页按 slug 读取，Markdown 由前端渲染（支持代码高亮 + 复制、行内/块级公式）
+  - 图片自动缩小展示，点击可放大查看
+  - 过长的块级公式横向滚动
 - 后台管理 `/console`：
   - 进入前需校验访问凭证（key）
   - 概览页分类展示已发布/未发布文章，支持编辑、删除、创建
   - 写文章页左右分栏（左侧 Markdown 编辑、右侧实时渲染），「设置」弹框编辑标题、摘要、标签、发布、固定
+  - 文件管理：上传/删除图片（图床）与普通文件，图片可通过 `/images/...` 在 Markdown 中引用；上传带进度条，单文件上限 128MB
 - 新建文章自动生成 8 位小写随机 slug
 - 摘要为空时自动从正文提取
+- 未保存更改离开写文章页时提示
 
 ## 目录结构
 
@@ -27,7 +32,8 @@
 BlogPlus/
 ├── src/                          # 后端
 │   └── main/java/me/iynotuo/blog/
-│       ├── controller/           # REST 接口（公开 + 后台）
+│       ├── config/               # 静态资源映射（/images、/files）
+│       ├── controller/           # REST 接口（公开 + 后台 + 文件）
 │       ├── dao/                  # 数据访问层（JdbcClient）
 │       └── entity/               # 实体类
 ├── frontend/                     # 前端
@@ -80,8 +86,11 @@ CREATE TABLE posts (
     --spring.datasource.username=你的用户名
     --spring.datasource.password=你的密码
     --blog.admin.key=你的后台凭证
+    --blog.upload.dir=uploads
   "
 ```
+
+> 上传文件大小上限（默认 128MB）由 `application.properties` 中的 `spring.servlet.multipart.max-file-size` / `max-request-size` 控制。
 
 后端默认运行在 `http://localhost:8080`。
 
@@ -134,3 +143,11 @@ npm run dev
 - `GET /api/admin/posts/{id}` — 读取文章
 - `PUT /api/admin/posts/{id}` — 修改文章
 - `DELETE /api/admin/posts/{id}` — 删除文章
+- `GET /api/admin/files?type=image|file` — 列出文件
+- `POST /api/admin/files?type=image|file` — 上传文件
+- `DELETE /api/admin/files/{type}/{filename}` — 删除文件
+
+静态资源（公开访问）：
+
+- `/images/**` — 上传的图片（图床）
+- `/files/**` — 上传的普通文件

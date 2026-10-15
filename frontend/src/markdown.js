@@ -49,6 +49,12 @@ export function renderMarkdown(text) {
   return marked.parse(text || '')
 }
 
+// markdown 容器统一点击处理：代码复制 + 图片放大
+export function onMarkdownClick(e) {
+  onCodeCopy(e)
+  onImageClick(e)
+}
+
 export async function onCodeCopy(e) {
   const btn = e.target.closest('.code-copy')
   if (!btn) return
@@ -65,4 +71,25 @@ export async function onCodeCopy(e) {
       btn.textContent = '复制'
     }, 1500)
   }
+}
+
+// 图片点击放大：在 markdown 容器上做事件委托
+export function onImageClick(e) {
+  const img = e.target.closest('img')
+  if (!img) return
+  openLightbox(img.src, img.alt || '')
+}
+
+function openLightbox(src, alt) {
+  let overlay = document.getElementById('md-lightbox')
+  if (!overlay) {
+    overlay = document.createElement('div')
+    overlay.id = 'md-lightbox'
+    overlay.innerHTML = '<img alt="">'
+    overlay.addEventListener('click', () => overlay.remove())
+    document.body.appendChild(overlay)
+  }
+  const img = overlay.querySelector('img')
+  img.src = src
+  img.alt = alt
 }
