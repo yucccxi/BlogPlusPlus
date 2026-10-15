@@ -86,10 +86,16 @@ CREATE TABLE posts (
     --spring.datasource.password=你的密码
     --blog.admin.key=你的后台凭证
     --blog.upload.dir=uploads
+    --blog.beian.icp=xxxxx
+    --blog.beian.icp-url=https://beian.miit.gov.cn/#/Integrated/index
+    --blog.beian.gongan=xxxxx
+    --blog.beian.gongan-url=https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx
   "
 ```
 
 > 上传文件大小上限（默认 128MB）由 `application.properties` 中的 `spring.servlet.multipart.max-file-size` / `max-request-size` 控制。
+>
+> 备案信息（`blog.beian.*`）为可选参数，不配置时侧边栏底部不显示备案号；公安备案图标 `gongan.png` 放置在前端 `frontend/public/` 目录下。
 
 后端默认运行在 `http://localhost:8080`。
 
@@ -134,6 +140,7 @@ npm run dev
 - `GET /api/posts/pinned` — 已固定文章
 - `GET /api/posts/{slug}` — 文章详情
 - `GET /api/search?q=关键词` — 全文搜索，返回匹配文章及上下文片段（含高亮起止位置）
+- `GET /api/site/beian` — 备案信息（ICP + 公安备案，未配置时字段为空）
 
 后台接口（需 `X-Admin-Key` 请求头）：
 

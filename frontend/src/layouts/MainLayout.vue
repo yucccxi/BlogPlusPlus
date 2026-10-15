@@ -1,5 +1,17 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import { RouterLink, RouterView } from 'vue-router'
+
+const beian = ref(null)
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/site/beian')
+    if (res.ok) beian.value = await res.json()
+  } catch {
+    beian.value = null
+  }
+})
 </script>
 
 <template>
@@ -16,6 +28,15 @@ import { RouterLink, RouterView } from 'vue-router'
 
       <div class="sidebar-footer">
         <p>By yuchenxi</p>
+        <div v-if="beian && (beian.icp || beian.gongan)" class="footer-beian">
+          <div v-if="beian.icp" class="beian-row">
+            <a :href="beian.icpUrl || '#'" target="_blank" rel="noopener">{{ beian.icp }}</a>
+          </div>
+          <div v-if="beian.gongan" class="beian-row">
+            <img class="gongan-icon" src="/gongan.png" alt="" />
+            <a :href="beian.gonganUrl || '#'" target="_blank" rel="noopener">{{ beian.gongan }}</a>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -89,6 +110,36 @@ import { RouterLink, RouterView } from 'vue-router'
   padding: 0.5rem;
   font-size: 0.8rem;
   color: var(--text-muted);
+}
+
+.footer-beian {
+  margin: 0.75rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.beian-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.beian-row + .beian-row {
+  margin-top: 0.25rem;
+}
+
+.footer-beian a {
+  color: var(--text-muted);
+}
+
+.footer-beian a:hover {
+  color: var(--accent);
+}
+
+.gongan-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
 }
 
 .content {
