@@ -6,6 +6,7 @@ import ConsoleView from '@/views/ConsoleView.vue'
 import ConsoleOverview from '@/views/ConsoleOverview.vue'
 import ConsoleEditor from '@/views/ConsoleEditor.vue'
 import ConsoleFiles from '@/views/ConsoleFiles.vue'
+import NotFoundView from '@/views/NotFoundView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -28,6 +29,7 @@ const router = createRouter({
         { path: 'files', name: 'console-files', component: ConsoleFiles },
       ],
     },
+    { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundView },
   ],
 })
 
