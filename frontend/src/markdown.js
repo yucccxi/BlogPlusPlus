@@ -46,7 +46,39 @@ marked.use({
 })
 
 export function renderMarkdown(text) {
-  return marked.parse(text || '')
+  const html = marked.parse(text || '')
+  return buildWithHeadings(html)
+}
+
+function slugify(text) {
+  const s = text
+    .toLowerCase()
+    .replace(/[^\w\u4e00-\u9fa5-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return s || 'section'
+}
+
+/**
+ * 解析渲染后的 HTML，为 h1~h3 标题补充 id，并返回标题列表用于生成目录。
+ */
+function buildWithHeadings(html) {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const headings = []
+  const used = new Map()
+  doc.querySelectorAll('h1, h2, h3').forEach((h) => {
+    const text = (h.textContent || '').trim()
+    if (!text) return
+    const level = Number(h.tagName[1])
+    let id = slugify(text)
+    const count = used.get(id) || 0
+    used.set(id, count + 1)
+    if (count > 0) {
+      id = `${id}-${count + 1}`
+    }
+    h.id = id
+    headings.push({ id, text, level })
+  })
+  return { html: doc.body.innerHTML, headings }
 }
 
 // markdown 容器统一点击处理：代码复制 + 图片放大

@@ -40,7 +40,7 @@ const dirty = computed(() => {
   )
 })
 
-const previewHtml = computed(() => renderMarkdown(form.value.content))
+const previewHtml = computed(() => renderMarkdown(form.value.content).html)
 
 async function loadPost(id) {
   loading.value = true

@@ -8,7 +8,9 @@ const post = ref(null)
 const error = ref('')
 const loading = ref(true)
 
-const html = computed(() => (post.value ? renderMarkdown(post.value.content) : ''))
+const rendered = computed(() =>
+  post.value ? renderMarkdown(post.value.content) : { html: '', headings: [] },
+)
 
 onMounted(async () => {
   try {
@@ -21,6 +23,13 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+function scrollToHeading(id) {
+  const el = document.getElementById(id)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
 
 function formatDate(value) {
   if (!value) return ''
@@ -37,30 +46,106 @@ function formatDate(value) {
     <p v-if="loading" class="hint">加载中...</p>
     <p v-else-if="error" class="hint error">{{ error }}</p>
 
-    <article v-else-if="post" class="post">
-      <header class="post-header">
-        <h1 class="post-title">{{ post.title }}</h1>
-        <div class="post-meta">
-          <time v-if="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
-          <span v-else>未发布</span>
-          <span v-if="post.tags && post.tags.length" class="tag-list">
-            <span v-for="tag in post.tags" :key="tag" class="tag">{{ tag }}</span>
-          </span>
-        </div>
-      </header>
+    <div v-else-if="post" class="post-layout">
+      <article class="post">
+        <header class="post-header">
+          <h1 class="post-title">{{ post.title }}</h1>
+          <div class="post-meta">
+            <time v-if="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
+            <span v-else>未发布</span>
+            <span v-if="post.tags && post.tags.length" class="tag-list">
+              <span v-for="tag in post.tags" :key="tag" class="tag">{{ tag }}</span>
+            </span>
+          </div>
+        </header>
 
-      <div class="post-body">
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <div class="markdown" v-html="html"></div>
-      </div>
-    </article>
+        <div class="post-body">
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div class="markdown" v-html="rendered.html"></div>
+        </div>
+      </article>
+
+      <aside v-if="rendered.headings.length" class="toc">
+        <h2 class="toc-title">目录</h2>
+        <ul class="toc-list">
+          <li
+            v-for="h in rendered.headings"
+            :key="h.id"
+            :class="['toc-item', 'toc-level-' + h.level]"
+          >
+            <a :href="'#' + h.id" @click.prevent="scrollToHeading(h.id)">{{ h.text }}</a>
+          </li>
+        </ul>
+      </aside>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .post-page {
-  max-width: 820px;
+  max-width: 1200px;
   margin: 0 auto;
+}
+
+.post-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.5rem;
+}
+
+.post {
+  flex: 1;
+  min-width: 0;
+}
+
+.toc {
+  width: 240px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 3rem;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  padding: 1rem 0 1rem 1.25rem;
+}
+
+.toc-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.toc-item a {
+  display: block;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  padding: 0.15rem 0;
+  text-decoration: none;
+}
+
+.toc-item a:hover {
+  color: var(--accent);
+}
+
+.toc-level-2 a {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.toc-level-3 a {
+  padding-left: 1rem;
 }
 
 .hint {
@@ -113,6 +198,7 @@ function formatDate(value) {
   line-height: 1.35;
   margin-top: 1.75rem;
   margin-bottom: 0.75rem;
+  scroll-margin-top: 1rem;
 }
 
 .markdown :deep(p) {
