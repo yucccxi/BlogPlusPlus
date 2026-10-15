@@ -59,12 +59,21 @@ function slugify(text) {
 }
 
 /**
- * 解析渲染后的 HTML，为 h1~h3 标题补充 id，并返回标题列表用于生成目录。
+ * 解析渲染后的 HTML，为 h1~h3 标题补充 id（用于生成目录），
+ * 并给每个表格包一层 .table-wrapper 容器，便于在窄屏下横向滚动。
  */
 function buildWithHeadings(html) {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const headings = []
   const used = new Map()
+
+  doc.querySelectorAll('table').forEach((table) => {
+    const wrapper = doc.createElement('div')
+    wrapper.className = 'table-wrapper'
+    table.parentNode.insertBefore(wrapper, table)
+    wrapper.appendChild(table)
+  })
+
   doc.querySelectorAll('h1, h2, h3').forEach((h) => {
     const text = (h.textContent || '').trim()
     if (!text) return

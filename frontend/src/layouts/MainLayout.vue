@@ -27,7 +27,6 @@ onMounted(async () => {
       </nav>
 
       <div class="sidebar-footer">
-        <p>By yuchenxi</p>
         <div v-if="beian && (beian.icp || beian.gongan)" class="footer-beian">
           <div v-if="beian.icp" class="beian-row">
             <a :href="beian.icpUrl || '#'" target="_blank" rel="noopener">{{ beian.icp }}</a>
@@ -42,6 +41,15 @@ onMounted(async () => {
 
     <main class="content">
       <RouterView />
+      <footer v-if="beian && (beian.icp || beian.gongan)" class="mobile-footer">
+        <div v-if="beian.icp" class="beian-row">
+          <a :href="beian.icpUrl || '#'" target="_blank" rel="noopener">{{ beian.icp }}</a>
+        </div>
+        <div v-if="beian.gongan" class="beian-row">
+          <img class="gongan-icon" src="/gongan.png" alt="" />
+          <a :href="beian.gonganUrl || '#'" target="_blank" rel="noopener">{{ beian.gongan }}</a>
+        </div>
+      </footer>
     </main>
   </div>
 </template>
@@ -147,5 +155,66 @@ onMounted(async () => {
   min-width: 0;
   overflow-y: auto;
   padding: 2.5rem 3rem;
+}
+
+.mobile-footer {
+  display: none;
+}
+
+/* 手机端：侧边栏变为顶部导航栏 */
+@media (max-width: 768px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-direction: row;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .brand {
+    padding: 0 1rem 0 0;
+    font-size: 1.1rem;
+  }
+
+  .nav {
+    flex-direction: row;
+    gap: 0.25rem;
+  }
+
+  .nav-link {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.9rem;
+  }
+
+  .sidebar-footer {
+    display: none;
+  }
+
+  .content {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .mobile-footer {
+    display: block;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+  }
+
+  .mobile-footer a {
+    color: var(--text-muted);
+  }
 }
 </style>

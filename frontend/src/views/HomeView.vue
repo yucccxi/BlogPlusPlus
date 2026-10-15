@@ -35,10 +35,6 @@ function formatDate(value) {
 <template>
   <div class="home">
     <div class="main-col">
-      <header class="page-header">
-        <h1>全部文章</h1>
-        <p class="subtitle">记录与分享</p>
-      </header>
 
       <p v-if="loading" class="hint">加载中...</p>
       <p v-else-if="error" class="hint error">{{ error }}</p>
@@ -211,5 +207,31 @@ function formatDate(value) {
 
 .pinned-link:hover {
   color: var(--accent);
+}
+
+/* 手机端：单列堆叠，置顶栏目移到文章下方 */
+@media (max-width: 768px) {
+  .home {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .side-col {
+    width: 100%;
+    position: static;
+  }
+
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .post-card {
+    padding: 1rem 1.1rem;
+  }
+
+  .post-title {
+    font-size: 1.05rem;
+  }
 }
 </style>

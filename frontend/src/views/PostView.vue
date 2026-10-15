@@ -192,6 +192,11 @@ function formatDate(value) {
 }
 
 /* markdown 渲染内容排版 */
+.markdown {
+  max-width: 100%;
+  overflow-wrap: break-word;
+}
+
 .markdown :deep(h1),
 .markdown :deep(h2),
 .markdown :deep(h3) {
@@ -236,6 +241,7 @@ function formatDate(value) {
 /* 代码块 */
 .markdown :deep(.code-block) {
   margin: 1.25rem 0;
+  max-width: 100%;
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid #30363d;
@@ -277,6 +283,7 @@ function formatDate(value) {
   padding: 1rem 1.1rem;
   background: #0d1117;
   overflow-x: auto;
+  max-width: 100%;
   font-size: 0.9rem;
   line-height: 1.6;
 }
@@ -284,5 +291,56 @@ function formatDate(value) {
 .markdown :deep(pre code) {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9rem;
+  white-space: pre;
+}
+
+/* 表格：外层容器横向滚动，窄屏下不撑破页面 */
+.markdown :deep(.table-wrapper) {
+  margin: 1rem 0;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.markdown :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.markdown :deep(th),
+.markdown :deep(td) {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.markdown :deep(th) {
+  background: var(--bg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* 手机端：隐藏目录，正文单列 */
+@media (max-width: 768px) {
+  .post-layout {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1.5rem;
+  }
+
+  .post {
+    width: 100%;
+  }
+
+  .toc {
+    display: none;
+  }
+
+  .post-title {
+    font-size: 1.5rem;
+  }
 }
 </style>

@@ -218,4 +218,15 @@ function highlightSnippet(snippet) {
   border-radius: 3px;
   padding: 0 2px;
 }
+
+/* 手机端 */
+@media (max-width: 768px) {
+  .page-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .result {
+    padding: 1rem 1.1rem;
+  }
+}
 </style>

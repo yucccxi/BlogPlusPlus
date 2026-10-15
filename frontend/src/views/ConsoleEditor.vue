@@ -349,6 +349,35 @@ onBeforeRouteLeave(() => {
   font-size: 0.9rem;
 }
 
+/* 表格：外层容器横向滚动，窄屏下不撑破页面 */
+.markdown :deep(.table-wrapper) {
+  margin: 1rem 0;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.markdown :deep(table) {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.markdown :deep(th),
+.markdown :deep(td) {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-size: 0.9rem;
+}
+
+.markdown :deep(th) {
+  background: var(--bg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 /* 弹框 */
 .modal-mask {
   position: fixed;
