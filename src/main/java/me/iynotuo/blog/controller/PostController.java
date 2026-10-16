@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
@@ -15,6 +16,8 @@ import java.util.List;
 @RequestMapping("/api/posts")
 public class PostController {
 
+    private static final int MAX_SIZE = 100;
+
     private final PostDao postDao;
 
     public PostController(PostDao postDao) {
@@ -22,8 +25,17 @@ public class PostController {
     }
 
     @GetMapping
-    public List<PostSummary> list() {
-        return postDao.findPublished().stream().map(PostSummary::from).toList();
+    public PageResult list(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        int safePage = Math.max(1, page);
+        int safeSize = Math.min(Math.max(1, size), MAX_SIZE);
+        int offset = (safePage - 1) * safeSize;
+        List<PostSummary> items = postDao.findPublished(safeSize, offset).stream()
+                .map(PostSummary::from)
+                .toList();
+        int total = postDao.countPublished();
+        return new PageResult(items, total, safePage, safeSize);
     }
 
     @GetMapping("/pinned")
@@ -33,10 +45,12 @@ public class PostController {
 
     @GetMapping("/{slug}")
     public ResponseEntity<Post> getBySlug(@PathVariable String slug) {
-        return postDao.findBySlug(slug)
+        return postDao.findPublishedBySlug(slug)
                 .map(ResponseEntity::ok)
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
+
+    public record PageResult(List<PostSummary> items, int total, int page, int size) {}
 
     public record PostSummary(
             Long id,

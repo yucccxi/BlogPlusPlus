@@ -1,26 +1,48 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
 const posts = ref([])
 const pinned = ref([])
 const error = ref('')
 const loading = ref(true)
 
-onMounted(async () => {
+const page = ref(1)
+const size = 10
+const total = ref(0)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
+
+async function loadPosts() {
+  loading.value = true
+  error.value = ''
   try {
-    const [postsRes, pinnedRes] = await Promise.all([
-      fetch('/api/posts'),
-      fetch('/api/posts/pinned'),
-    ])
-    if (!postsRes.ok) throw new Error('加载文章失败')
-    posts.value = await postsRes.json()
-    if (pinnedRes.ok) pinned.value = await pinnedRes.json()
+    const res = await fetch(`/api/posts?page=${page.value}&size=${size}`)
+    if (!res.ok) throw new Error('加载文章失败')
+    const data = await res.json()
+    posts.value = data.items || []
+    total.value = data.total || 0
   } catch (e) {
     error.value = e.message
   } finally {
     loading.value = false
   }
+}
+
+onMounted(async () => {
+  await loadPosts()
+  try {
+    const pinnedRes = await fetch('/api/posts/pinned')
+    if (pinnedRes.ok) pinned.value = await pinnedRes.json()
+  } catch {
+    pinned.value = []
+  }
 })
+
+function goPage(p) {
+  if (p < 1 || p > totalPages.value || p === page.value) return
+  page.value = p
+  loadPosts()
+}
 
 function formatDate(value) {
   if (!value) return ''
@@ -57,6 +79,26 @@ function formatDate(value) {
           </div>
         </RouterLink>
       </div>
+
+      <nav v-if="totalPages > 1" class="pagination">
+        <button
+          type="button"
+          class="page-btn"
+          :disabled="page <= 1"
+          @click="goPage(page - 1)"
+        >
+          上一页
+        </button>
+        <span class="page-info">{{ page }} / {{ totalPages }}</span>
+        <button
+          type="button"
+          class="page-btn"
+          :disabled="page >= totalPages"
+          @click="goPage(page + 1)"
+        >
+          下一页
+        </button>
+      </nav>
     </div>
 
     <aside v-if="pinned.length" class="side-col">
@@ -207,6 +249,40 @@ function formatDate(value) {
 
 .pinned-link:hover {
   color: var(--accent);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.page-btn {
+  padding: 0.4rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--sidebar-bg);
+  color: var(--text);
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.page-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-info {
+  color: var(--text-muted);
+  font-size: 0.88rem;
 }
 
 /* 手机端：单列堆叠，置顶栏目移到文章下方 */

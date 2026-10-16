@@ -160,6 +160,5 @@ public class FileController {
         }
     }
 
-    public record FileItem(String name, String url, long size) {
-    }
+    public record FileItem(String name, String url, long size) {}
 }

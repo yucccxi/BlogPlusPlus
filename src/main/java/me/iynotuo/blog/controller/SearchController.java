@@ -52,6 +52,7 @@ public class SearchController {
 
     /**
      * 去掉 Markdown 语法，得到可用于全文搜索的纯文本。
+     * // TODO 这段代码可能有性能瓶颈，后期可能要修改。
      */
     static String toPlainText(String markdown) {
         if (markdown == null || markdown.isBlank()) {
@@ -147,16 +148,10 @@ public class SearchController {
         return snippets;
     }
 
-    public record SearchResponse(String query, List<Result> results) {
-    }
-
     public record Result(String slug, String title, List<String> tags,
-                         LocalDateTime publishedAt, List<Snippet> snippets) {
-    }
+                         LocalDateTime publishedAt, List<Snippet> snippets) {}
 
-    public record Snippet(String text, List<Match> matches) {
-    }
-
-    public record Match(int start, int end) {
-    }
+    public record SearchResponse(String query, List<Result> results) {}
+    public record Snippet(String text, List<Match> matches) {}
+    public record Match(int start, int end) {}
 }

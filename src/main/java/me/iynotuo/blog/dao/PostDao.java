@@ -68,6 +68,13 @@ public class PostDao {
                 .optional();
     }
 
+    public Optional<Post> findPublishedBySlug(String slug) {
+        return jdbcClient.sql(BASE_SELECT + " WHERE slug = ? AND is_published = TRUE")
+                .param(slug)
+                .query(this::mapRow)
+                .optional();
+    }
+
     public List<Post> findAll() {
         return jdbcClient.sql(BASE_SELECT + " ORDER BY created_at DESC")
                 .query(this::mapRow)
@@ -78,6 +85,21 @@ public class PostDao {
         return jdbcClient.sql(BASE_SELECT + " WHERE is_published = TRUE ORDER BY published_at DESC")
                 .query(this::mapRow)
                 .list();
+    }
+
+    public List<Post> findPublished(int limit, int offset) {
+        return jdbcClient.sql(BASE_SELECT + " WHERE is_published = TRUE ORDER BY published_at DESC LIMIT ? OFFSET ?")
+                .param(limit)
+                .param(offset)
+                .query(this::mapRow)
+                .list();
+    }
+
+    public int countPublished() {
+        Integer count = jdbcClient.sql("SELECT COUNT(*) FROM posts WHERE is_published = TRUE")
+                .query((rs, rowNum) -> rs.getInt(1))
+                .single();
+        return count == null ? 0 : count;
     }
 
     public List<Post> findPinned() {

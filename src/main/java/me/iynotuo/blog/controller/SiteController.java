@@ -33,6 +33,5 @@ public class SiteController {
         return new BeianInfo(icp, icpUrl, gongan, gonganUrl);
     }
 
-    public record BeianInfo(String icp, String icpUrl, String gongan, String gonganUrl) {
-    }
+    public record BeianInfo(String icp, String icpUrl, String gongan, String gonganUrl) {}
 }
