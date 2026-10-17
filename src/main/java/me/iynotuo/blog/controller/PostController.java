@@ -2,6 +2,7 @@ package me.iynotuo.blog.controller;
 
 import me.iynotuo.blog.dao.PostDao;
 import me.iynotuo.blog.entity.Post;
+import me.iynotuo.blog.service.MarkdownTextExtractor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -68,7 +69,7 @@ public class PostController {
                     post.getId(),
                     post.getSlug(),
                     post.getTitle(),
-                    post.getSummary(),
+                    MarkdownTextExtractor.summarize(post.getRawText(), 150),
                     post.isPublished(),
                     post.isPinned(),
                     post.getTags(),

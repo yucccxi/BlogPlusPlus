@@ -78,7 +78,6 @@ public class AdminController {
         }
         Post post = new Post();
         post.setTitle(req.title());
-        post.setSummary(req.summary());
         post.setContent(req.content());
         post.setPublished(req.published());
         post.setPinned(req.pinned());
@@ -122,7 +121,6 @@ public class AdminController {
             return ResponseEntity.notFound().build();
         }
         existing.setTitle(req.title());
-        existing.setSummary(req.summary());
         existing.setContent(req.content());
         existing.setPublished(req.published());
         existing.setPinned(req.pinned());
@@ -155,7 +153,6 @@ public class AdminController {
 
     public record PostRequest(
             String title,
-            String summary,
             String content,
             boolean published,
             boolean pinned,

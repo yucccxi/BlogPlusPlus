@@ -1,6 +1,7 @@
 package me.iynotuo.blog.dao;
 
 import me.iynotuo.blog.entity.Post;
+import me.iynotuo.blog.service.MarkdownTextExtractor;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -20,38 +21,44 @@ public class PostDao {
     private static final SecureRandom RANDOM = new SecureRandom();
 
     private static final String BASE_SELECT = """
-            SELECT id, slug, title, summary, content, is_published, is_pinned, tags, created_at, updated_at, published_at
+            SELECT id, slug, title, content, raw_text, is_published, is_pinned, tags, created_at, updated_at, published_at
             FROM posts
             """;
 
     private final JdbcClient jdbcClient;
+    private final MarkdownTextExtractor extractor;
+    private final SearchCacheDao searchCacheDao;
 
-    public PostDao(JdbcClient jdbcClient) {
+    public PostDao(JdbcClient jdbcClient, MarkdownTextExtractor extractor, SearchCacheDao searchCacheDao) {
         this.jdbcClient = jdbcClient;
+        this.extractor = extractor;
+        this.searchCacheDao = searchCacheDao;
     }
 
     public long insert(Post post) {
         String slug = generateSlug();
         post.setSlug(slug);
-        String summary = post.getSummary() == null || post.getSummary().isBlank()
-                ? summarize(post.getContent())
-                : post.getSummary();
+        String rawText = extractor.toPlainText(post.getContent());
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcClient.sql("""
-                        INSERT INTO posts (slug, title, summary, content, is_published, is_pinned, tags, published_at)
-                        VALUES (:slug, :title, :summary, :content, :published, :pinned, :tags, :publishedAt)
+                        INSERT INTO posts (slug, title, content, raw_text, is_published, is_pinned, tags, published_at)
+                        VALUES (:slug, :title, :content, :rawText, :published, :pinned, :tags, :publishedAt)
                         """)
                 .param("slug", slug)
                 .param("title", post.getTitle())
-                .param("summary", summary)
                 .param("content", post.getContent())
+                .param("rawText", rawText)
                 .param("published", post.isPublished())
                 .param("pinned", post.isPinned())
                 .param("tags", joinTags(post.getTags()))
                 .param("publishedAt", post.getPublishedAt())
                 .update(keyHolder);
         Number key = keyHolder.getKey();
-        return key == null ? 0L : key.longValue();
+        long id = key == null ? 0L : key.longValue();
+        if (id != 0L) {
+            searchCacheDao.rebuild(id, rawText);
+        }
+        return id;
     }
 
     public Optional<Post> findById(long id) {
@@ -95,6 +102,32 @@ public class PostDao {
                 .list();
     }
 
+    public List<Post> findPublishedByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        String placeholders = String.join(",", java.util.Collections.nCopies(ids.size(), "?"));
+        return jdbcClient.sql(BASE_SELECT + " WHERE is_published = TRUE AND id IN (" + placeholders + ") ORDER BY published_at DESC")
+                .params(ids.toArray())
+                .query(this::mapRow)
+                .list();
+    }
+
+    /**
+     * 已发布文章的轻量元信息（不含 content/raw_text），用于标题匹配。
+     */
+    public List<Post> findPublishedMeta() {
+        return jdbcClient.sql("""
+                        SELECT id, slug, title, NULL AS content, NULL AS raw_text,
+                               is_published, is_pinned, tags, created_at, updated_at, published_at
+                        FROM posts
+                        WHERE is_published = TRUE
+                        ORDER BY published_at DESC
+                        """)
+                .query(this::mapRow)
+                .list();
+    }
+
     public int countPublished() {
         Integer count = jdbcClient.sql("SELECT COUNT(*) FROM posts WHERE is_published = TRUE")
                 .query((rs, rowNum) -> rs.getInt(1))
@@ -112,29 +145,42 @@ public class PostDao {
      * 更新文章，updated_at 由数据库的 ON UPDATE CURRENT_TIMESTAMP 自动维护。
      */
     public int update(Post post) {
-        String summary = post.getSummary() == null || post.getSummary().isBlank()
-                ? summarize(post.getContent())
-                : post.getSummary();
-        return jdbcClient.sql("""
+        String rawText = extractor.toPlainText(post.getContent());
+        int rows = jdbcClient.sql("""
                         UPDATE posts
-                        SET slug = :slug, title = :title, summary = :summary,
-                            content = :content, is_published = :published, is_pinned = :pinned,
+                        SET slug = :slug, title = :title,
+                            content = :content, raw_text = :rawText, is_published = :published, is_pinned = :pinned,
                             tags = :tags, published_at = :publishedAt
                         WHERE id = :id
                         """)
                 .param("slug", post.getSlug())
                 .param("title", post.getTitle())
-                .param("summary", summary)
                 .param("content", post.getContent())
+                .param("rawText", rawText)
                 .param("published", post.isPublished())
                 .param("pinned", post.isPinned())
                 .param("tags", joinTags(post.getTags()))
                 .param("publishedAt", post.getPublishedAt())
                 .param("id", post.getId())
                 .update();
+        if (rows > 0) {
+            searchCacheDao.rebuild(post.getId(), rawText);
+        }
+        return rows;
+    }
+
+    /**
+     * 仅更新 raw_text（用于 --force-cache 回填历史文章）。
+     */
+    public int updateRawText(long id, String rawText) {
+        return jdbcClient.sql("UPDATE posts SET raw_text = ? WHERE id = ?")
+                .param(rawText)
+                .param(id)
+                .update();
     }
 
     public int deleteById(long id) {
+        searchCacheDao.delete(id);
         return jdbcClient.sql("DELETE FROM posts WHERE id = ?")
                 .param(id)
                 .update();
@@ -170,44 +216,13 @@ public class PostDao {
         return String.join(",", tags);
     }
 
-    /**
-     * 从 Markdown 正文提取摘要：优先取 {@code <!-- more -->} 之前的内容，
-     * 否则取正文开头去掉 Markdown 标记后的前 150 个字符。
-     */
-    private static String summarize(String content) {
-        if (content == null || content.isBlank()) {
-            return null;
-        }
-        String text = content;
-        int moreIdx = text.indexOf("<!-- more -->");
-        if (moreIdx >= 0) {
-            text = text.substring(0, moreIdx);
-        }
-        text = text
-                .replaceAll("```[\\s\\S]*?```", " ")
-                .replaceAll("`[^`]*`", " ")
-                .replaceAll("!\\[[^\\]]*]\\([^)]*\\)", " ")
-                .replaceAll("\\[[^\\]]*]\\([^)]*\\)", "$1")
-                .replaceAll("(?m)^#{1,6}\\s*", "")
-                .replaceAll("(?m)^\\s*[-*+]\\s+", "")
-                .replaceAll("\\$\\$[\\s\\S]*?\\$\\$", " ")
-                .replaceAll("\\$[^$\\n]+\\$", " ")
-                .replaceAll("[*_>|~]+", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-        if (text.isEmpty()) {
-            return null;
-        }
-        return text.length() > 150 ? text.substring(0, 150).trim() + "…" : text;
-    }
-
     private Post mapRow(ResultSet rs, int rowNum) throws SQLException {
         Post post = new Post();
         post.setId(rs.getLong("id"));
         post.setSlug(rs.getString("slug"));
         post.setTitle(rs.getString("title"));
-        post.setSummary(rs.getString("summary"));
         post.setContent(rs.getString("content"));
+        post.setRawText(rs.getString("raw_text"));
         post.setPublished(rs.getBoolean("is_published"));
         post.setPinned(rs.getBoolean("is_pinned"));
         post.setTags(parseTags(rs.getString("tags")));

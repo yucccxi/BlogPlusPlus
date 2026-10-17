@@ -1,7 +1,9 @@
 package me.iynotuo.blog.controller;
 
 import me.iynotuo.blog.dao.PostDao;
+import me.iynotuo.blog.dao.SearchCacheDao;
 import me.iynotuo.blog.entity.Post;
+import me.iynotuo.blog.service.BigramUtil;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -9,12 +11,14 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
- * 全文搜索：将每篇文章的 Markdown 转为纯文本后做不区分大小写的子串匹配，
- * 并截取匹配处的上下文片段返回，供前端高亮展示。
+ * 全文搜索：基于 raw_text 与 bigram 缓存，先通过关键词第一个 bigram 的倒排索引定位候选文章，
+ * 再只在第一个 bigram 出现的位置附近校验完整关键词，并截取一个上下文片段返回。
  */
 @RestController
 @RequestMapping("/api/search")
@@ -22,117 +26,110 @@ public class SearchController {
 
     private static final int CONTEXT_BEFORE = 40;
     private static final int CONTEXT_AFTER = 60;
-    private static final int MAX_SNIPPETS = 3;
 
     private final PostDao postDao;
+    private final SearchCacheDao searchCacheDao;
 
-    public SearchController(PostDao postDao) {
+    public SearchController(PostDao postDao, SearchCacheDao searchCacheDao) {
         this.postDao = postDao;
+        this.searchCacheDao = searchCacheDao;
     }
 
     @GetMapping
     public SearchResponse search(@RequestParam String q) {
+        long start = System.nanoTime();
+
         String query = q == null ? "" : q.trim();
         if (query.isEmpty()) {
-            return new SearchResponse(query, List.of());
+            return new SearchResponse(query, List.of(), elapsedMs(start));
         }
         String lowerQuery = query.toLowerCase(Locale.ROOT);
+        List<String> bigrams = BigramUtil.bigrams(lowerQuery);
+        // 搜索必须两个字符以上
+        if (bigrams.isEmpty()) {
+            return new SearchResponse(query, List.of(), elapsedMs(start));
+        }
+        String firstBigram = bigrams.getFirst();
 
         List<Result> results = new ArrayList<>();
-        for (Post post : postDao.findPublished()) {
-            List<Snippet> snippets = buildSnippets(toPlainText(post.getContent()), lowerQuery);
-            boolean titleMatched = post.getTitle() != null
-                    && post.getTitle().toLowerCase(Locale.ROOT).contains(lowerQuery);
-            if (!snippets.isEmpty() || titleMatched) {
-                results.add(new Result(post.getSlug(), post.getTitle(), post.getTags(),
-                        post.getPublishedAt(), snippets));
+        Set<Long> seenIds = new HashSet<>();
+
+        List<Post> candidates = new ArrayList<>(resolveCandidates(firstBigram));
+        for (Post post : postDao.findPublishedMeta()) {
+            if (post.getTitle() != null && post.getTitle().toLowerCase(Locale.ROOT).contains(lowerQuery)) {
+                candidates.add(post);
             }
         }
-        return new SearchResponse(query, results);
-    }
 
-    /**
-     * 去掉 Markdown 语法，得到可用于全文搜索的纯文本。
-     * // TODO 这段代码可能有性能瓶颈，后期可能要修改。
-     */
-    static String toPlainText(String markdown) {
-        if (markdown == null || markdown.isBlank()) {
-            return "";
+        for (Post post : candidates) {
+            if (!seenIds.add(post.getId())) {
+                continue;
+            }
+            String rawText = post.getRawText() == null ? "" : post.getRawText();
+            Snippet snippet = buildSnippet(rawText, lowerQuery,
+                    searchCacheDao.findPositions(post.getId(), firstBigram));
+            boolean titleMatched = post.getTitle() != null
+                    && post.getTitle().toLowerCase(Locale.ROOT).contains(lowerQuery);
+            if (snippet != null || titleMatched) {
+                results.add(new Result(post.getSlug(), post.getTitle(), post.getTags(),
+                        post.getPublishedAt(), snippet == null ? List.of() : List.of(snippet)));
+            }
         }
-        String text = markdown;
-        // 去掉代码块围栏，保留代码内容
-        text = text.replaceAll("(?s)```[a-zA-Z0-9]*\\s*", " ");
-        // 图片语法
-        text = text.replaceAll("!\\[[^\\]]*]\\([^)]*\\)", " ");
-        // 链接 [text](url) -> text
-        text = text.replaceAll("\\[([^\\]]*)]\\([^)]*\\)", "$1");
-        // 行内代码
-        text = text.replaceAll("`([^`]*)`", "$1");
-        // 标题
-        text = text.replaceAll("(?m)^#{1,6}\\s*", "");
-        // 列表项
-        text = text.replaceAll("(?m)^\\s*[-*+]\\s+", "");
-        text = text.replaceAll("(?m)^\\s*\\d+\\.\\s+", "");
-        // 引用
-        text = text.replaceAll("(?m)^\\s*>\\s?", "");
-        // 块级公式
-        text = text.replaceAll("(?s)\\$\\$.*?\\$\\$", " ");
-        // 行内公式
-        text = text.replaceAll("\\$[^$\\n]+\\$", " ");
-        // 粗体 / 斜体 / 删除线
-        text = text.replaceAll("[*_~]{1,3}", "");
-        // HTML 标签
-        text = text.replaceAll("<[^>]+>", " ");
-        // 合并空白
-        return text.replaceAll("\\s+", " ").trim();
+
+        results.sort((a, b) -> {
+            LocalDateTime ta = a.publishedAt();
+            LocalDateTime tb = b.publishedAt();
+            if (ta == null && tb == null) {
+                return 0;
+            }
+            if (ta == null) {
+                return 1;
+            }
+            if (tb == null) {
+                return -1;
+            }
+            return tb.compareTo(ta);
+        });
+
+        return new SearchResponse(query, results, elapsedMs(start));
+    }
+
+    private static long elapsedMs(long startNanos) {
+        return (System.nanoTime() - startNanos) / 1_000_000;
     }
 
     /**
-     * 在纯文本中查找关键词，将上下文窗口重叠的匹配合并为一个片段，
-     * 并为每个片段记录关键词在片段内的起止位置。
+     * 用关键词第一个 bigram 的倒排索引筛选候选文章。
      */
-    static List<Snippet> buildSnippets(String text, String lowerQuery) {
+    private List<Post> resolveCandidates(String firstBigram) {
+        List<Long> ids = new ArrayList<>(searchCacheDao.findPostIds(firstBigram));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return postDao.findPublishedByIds(ids);
+    }
+
+    /**
+     * 只在第一个 bigram 出现的位置附近校验完整关键词，命中则返回一个上下文片段（否则为 null）。
+     */
+    static Snippet buildSnippet(String text, String lowerQuery, List<Integer> positions) {
         String lowerText = text.toLowerCase(Locale.ROOT);
         int qLen = lowerQuery.length();
         if (qLen == 0) {
-            return List.of();
+            return null;
         }
-        List<int[]> matches = new ArrayList<>();
-        int idx = lowerText.indexOf(lowerQuery);
-        while (idx >= 0) {
-            matches.add(new int[]{idx, idx + qLen});
-            idx = lowerText.indexOf(lowerQuery, idx + 1);
-        }
-        if (matches.isEmpty()) {
-            return List.of();
-        }
-
-        List<List<int[]>> groups = new ArrayList<>();
-        int windowEnd = -1;
-        for (int[] m : matches) {
-            int snippetStart = Math.max(0, m[0] - CONTEXT_BEFORE);
-            if (groups.isEmpty() || snippetStart > windowEnd) {
-                List<int[]> group = new ArrayList<>();
-                group.add(m);
-                groups.add(group);
-                windowEnd = m[1] + CONTEXT_AFTER;
-            } else {
-                groups.get(groups.size() - 1).add(m);
-                windowEnd = Math.max(windowEnd, m[1] + CONTEXT_AFTER);
+        for (int pos : positions) {
+            if (pos < 0 || pos + qLen > lowerText.length()) {
+                continue;
             }
-        }
-
-        List<Snippet> snippets = new ArrayList<>();
-        int limit = Math.min(groups.size(), MAX_SNIPPETS);
-        for (int g = 0; g < limit; g++) {
-            List<int[]> group = groups.get(g);
-            int[] first = group.get(0);
-            int[] last = group.get(group.size() - 1);
-            int start = Math.max(0, first[0] - CONTEXT_BEFORE);
-            int end = Math.min(text.length(), last[1] + CONTEXT_AFTER);
+            // 第一个 bigram 的位置即完整关键词可能出现的起始位置
+            if (!lowerText.startsWith(lowerQuery, pos)) {
+                continue;
+            }
+            int start = Math.max(0, pos - CONTEXT_BEFORE);
+            int end = Math.min(text.length(), pos + qLen + CONTEXT_AFTER);
 
             StringBuilder sb = new StringBuilder();
-            List<Match> snippetMatches = new ArrayList<>();
             if (start > 0) {
                 sb.append('…');
             }
@@ -141,18 +138,16 @@ public class SearchController {
             if (end < text.length()) {
                 sb.append('…');
             }
-            for (int[] m : group) {
-                snippetMatches.add(new Match(offset + (m[0] - start), offset + (m[1] - start)));
-            }
-            snippets.add(new Snippet(sb.toString(), snippetMatches));
+            Match match = new Match(offset + (pos - start), offset + (pos - start) + qLen);
+            return new Snippet(sb.toString(), List.of(match));
         }
-        return snippets;
+        return null;
     }
 
     public record Result(String slug, String title, List<String> tags,
                          LocalDateTime publishedAt, List<Snippet> snippets) {}
 
-    public record SearchResponse(String query, List<Result> results) {}
+    public record SearchResponse(String query, List<Result> results, long elapsedMs) {}
     public record Snippet(String text, List<Match> matches) {}
     public record Match(int start, int end) {}
 }

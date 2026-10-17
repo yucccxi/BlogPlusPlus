@@ -1,6 +1,9 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { toast } from 'vue3-toastify'
+
+const router = useRouter()
 
 const posts = ref([])
 const pinned = ref([])
@@ -40,9 +43,33 @@ async function loadPinned() {
 }
 
 onMounted(() => {
+  window.addEventListener('wheel', onWheel, { passive: true })
   loadPosts()
   loadPinned()
 })
+
+onBeforeUnmount(() => {
+  window.removeEventListener('wheel', onWheel)
+})
+
+// 在首页顶部继续往上滚动（下拉）时，自动切换到搜索页
+let pullDistance = 0
+function onWheel(e) {
+  const scroller = document.querySelector('.content')
+  if (!scroller || scroller.scrollTop > 0) {
+    pullDistance = 0
+    return
+  }
+  if (e.deltaY < 0) {
+    pullDistance += -e.deltaY
+    if (pullDistance >= 400) {
+      pullDistance = 0
+      router.push('/search')
+    }
+  } else {
+    pullDistance = 0
+  }
+}
 
 function goPage(p) {
   if (p < 1 || p > totalPages.value || p === page.value) return

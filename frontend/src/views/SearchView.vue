@@ -1,15 +1,21 @@
 <script setup>
 import { ref } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const query = ref('')
 const searchedQuery = ref('')
 const results = ref([])
+const elapsedMs = ref(0)
 const loading = ref(false)
 const searched = ref(false)
 
 async function doSearch() {
   const q = query.value.trim()
   if (!q) return
+  if ([...q].length < 2) {
+    toast.warn('搜索关键词至少需要 2 个字符')
+    return
+  }
   searchedQuery.value = q
   searched.value = true
   loading.value = true
@@ -18,6 +24,7 @@ async function doSearch() {
     if (!res.ok) throw new Error('搜索失败')
     const data = await res.json()
     results.value = data.results || []
+    elapsedMs.value = data.elapsedMs ?? 0
   } catch {
     results.value = []
   } finally {
@@ -103,7 +110,11 @@ function highlightSnippet(snippet) {
       <p v-if="loading" class="hint">搜索中...</p>
       <p v-else-if="!results.length" class="hint">没有找到匹配「{{ searchedQuery }}」的文章</p>
 
-      <div v-else class="results">
+      <p v-else class="hint result-count">
+        找到 {{ results.length }} 条结果，用时 {{ elapsedMs }} ms
+      </p>
+
+      <div v-if="results.length" class="results">
         <div v-for="r in results" :key="r.slug" class="result">
           <RouterLink :to="`/posts/${r.slug}`" class="result-title">
             <!-- eslint-disable-next-line vue/no-v-html -->
@@ -186,6 +197,11 @@ function highlightSnippet(snippet) {
 
 .hint {
   color: var(--text-muted);
+}
+
+.result-count {
+  margin: 0 0 0.75rem;
+  font-size: 0.85rem;
 }
 
 .results {

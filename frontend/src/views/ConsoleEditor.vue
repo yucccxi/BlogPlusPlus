@@ -13,7 +13,6 @@ const isEdit = computed(() => route.name === 'console-edit')
 const form = ref({
   id: null,
   title: '',
-  summary: '',
   content: '',
   published: false,
   pinned: false,
@@ -32,7 +31,6 @@ const dirty = computed(() => {
   const s = savedForm.value
   return (
     f.title !== s.title ||
-    f.summary !== s.summary ||
     f.content !== s.content ||
     f.published !== s.published ||
     f.pinned !== s.pinned ||
@@ -52,7 +50,6 @@ async function loadPost(id) {
     form.value = {
       id: p.id,
       title: p.title,
-      summary: p.summary || '',
       content: p.content,
       published: p.published,
       pinned: p.pinned,
@@ -73,7 +70,6 @@ async function save() {
   }
   const body = {
     title: form.value.title,
-    summary: form.value.summary,
     content: form.value.content,
     published: form.value.published,
     pinned: form.value.pinned,
@@ -157,9 +153,6 @@ onBeforeRouteLeave(() => {
 
         <label class="field-label" for="title">标题</label>
         <input id="title" v-model="form.title" type="text" class="input" />
-
-        <label class="field-label" for="summary">摘要</label>
-        <input id="summary" v-model="form.summary" type="text" class="input" />
 
         <label class="field-label" for="tags">标签（逗号分隔）</label>
         <input id="tags" v-model="form.tagsText" type="text" class="input" placeholder="算法, 题解" />

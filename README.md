@@ -1,27 +1,31 @@
 # Blog++
 
-一个极简的个人博客系统，前后端分离。后端使用 Spring Boot + JDBC，前端使用 Vue 3 + Vite，支持 Markdown 渲染、代码高亮、数学公式、标签与置顶等功能，并提供带凭证校验的后台管理。
+一个极简的个人博客系统，前后端分离。后端使用 Spring Boot + JDBC，前端使用 Vue 3 + Vite，支持 Markdown 渲染、代码高亮、数学公式、全局搜索、标签与置顶等功能，并提供带凭证校验的后台管理。
 
 ## 技术栈
 
 | 端 | 技术 |
 |---|---|
-| 后端 | Spring Boot 4.x、Spring JDBC、MySQL |
+| 后端 | Spring Boot 4.x、Spring JDBC、MySQL、flexmark |
 | 前端 | Vue 3、Vue Router、Vite |
 | 渲染 | marked、highlight.js、KaTeX |
 
 ## 功能/TODOs
 
 - [x] 主页展示已发布文章，右侧「已固定」栏目展示置顶文章
-- [x] 搜索页 `/search`：全文搜索已发布文章正文，匹配关键词高亮
 - [x] 文章详情页右侧目录（ToC），展示 h1-h3 标题并支持点击跳转
-- [x] Markdown 由前端渲染（支持代码块、行内/块级公式）
+- [x] 搜索页 `/search`：全文搜索已发布文章正文，匹配关键词高亮
+- [x] 关于页 `/about`：包含开源说明、GitHub 仓库、头像、个人介绍、经历时间线与个人链接
 - [x] 后台管理 `/console`：
-  - 进入前需校验访问凭证（key）
-  - 文章管理：文章内容、属性管理，编写文章实时渲染 markdown（分屏预览）
-  - 文件管理：上传/删除图片（图床）与普通文件，图片可通过 `/images/...` 在 Markdown 中引用
-
-- [ ] 优化搜索效率，更改搜索页结构
+  - [x] 进入前需校验访问凭证（key）
+  - [x] 文章管理：文章内容、属性管理，编写文章实时渲染 markdown（分屏预览）
+  - [x] 文件管理：上传/删除图片（图床）与普通文件，图片可通过 `/images/...` 在 Markdown 中引用
+  - [ ] 优化界面和操作逻辑
+- [x] 优化搜索效率，更改搜索页结构：
+  - [x] 搜索使用 bigram 算法，建立索引，匹配关键词高亮展示
+  - [x] 增加文章、修改文章之后自动更新索引
+  - [x] 使用 `--force-cache` 强制刷新所有文章的索引
+- [ ] 标签页面 `/tags`：展示所有已使用的标签，点击标签跳转至该标签的文章列表
 
 ## 目录结构
 
@@ -33,6 +37,7 @@ BlogPlus/
 │       ├── controller/           # REST 接口（公开 + 后台 + 文件 + 搜索 + 站点配置）
 │       ├── dao/                  # 数据访问层（JdbcClient）
 │       ├── entity/               # 实体类
+│       ├── service/              # 业务逻辑（Markdown 文本提取、bigram 索引、缓存初始化）
 │       └── BlogPlusApplication.java  # 启动类
 ├── frontend/                     # 前端
 │   ├── public/                   # 静态资源（favicon、公安备案图标等）
@@ -65,8 +70,8 @@ CREATE TABLE posts (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     slug CHAR(8) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
     title VARCHAR(255) NOT NULL,
-    summary TEXT,
     content LONGTEXT NOT NULL,
+    raw_text LONGTEXT DEFAULT NULL,
     is_published BOOLEAN NOT NULL DEFAULT FALSE,
     is_pinned BOOLEAN NOT NULL DEFAULT FALSE,
     tags VARCHAR(255) DEFAULT NULL,
@@ -74,6 +79,15 @@ CREATE TABLE posts (
     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     published_at DATETIME DEFAULT NULL,
     INDEX idx_published_at (is_published, published_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE search_cache (
+    post_id BIGINT UNSIGNED NOT NULL,
+    bigram VARCHAR(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+    positions TEXT NOT NULL,
+    PRIMARY KEY (bigram, post_id),
+    INDEX idx_search_cache_post (post_id),
+    CONSTRAINT fk_search_cache_post FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
@@ -143,6 +157,12 @@ blog:
     gongan-url: "https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx"
 ```
 
+> 全文搜索依赖 `posts.raw_text` 列与 `search_cache` 表。新数据库按上文建表即可；已有数据库需先补齐建表语句（`ALTER TABLE posts ADD COLUMN raw_text LONGTEXT DEFAULT NULL;` 并新建 `search_cache` 表），然后带 `--force-cache` 启动一次以重建缓存：
+>
+> ```bash
+> java -jar target/BlogPlus-0.0.1-SNAPSHOT.jar --force-cache
+> ```
+
 ### 2. 打包前端
 
 ```bash
@@ -202,11 +222,12 @@ server {
 
 公开接口：
 
-- `GET /api/posts` — 已发布文章列表
+- `GET /api/posts?page=1&size=10` — 已发布文章列表（分页）
 - `GET /api/posts/pinned` — 已固定文章
 - `GET /api/posts/{slug}` — 文章详情
-- `GET /api/search?q=关键词` — 全文搜索，返回匹配文章及上下文片段（含高亮起止位置）
+- `GET /api/search?q=关键词` — 全文搜索（至少 2 个字符），返回匹配文章、上下文片段及耗时
 - `GET /api/site/beian` — 备案信息（ICP + 公安备案，未配置时字段为空）
+- `GET /api/site/about` — 关于页信息（头像）
 
 后台接口（需 `X-Admin-Key` 请求头）：
 

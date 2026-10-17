@@ -9,8 +9,8 @@ public class Post {
     private Long id;
     private String slug;
     private String title;
-    private String summary;
     private String content;
+    private String rawText;
     private boolean published;
     private boolean pinned;
     private List<String> tags = new ArrayList<>();
@@ -42,20 +42,20 @@ public class Post {
         this.title = title;
     }
 
-    public String getSummary() {
-        return summary;
-    }
-
-    public void setSummary(String summary) {
-        this.summary = summary;
-    }
-
     public String getContent() {
         return content;
     }
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public String getRawText() {
+        return rawText;
+    }
+
+    public void setRawText(String rawText) {
+        this.rawText = rawText;
     }
 
     public boolean isPublished() {
