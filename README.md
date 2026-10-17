@@ -109,29 +109,36 @@ npm run dev
 java -jar target/BlogPlus-0.0.1-SNAPSHOT.jar
 ```
 
-首次运行会在工作目录生成 `config.properties`，从 jar 内置模板生成，填写后重启生效：
+首次运行会在工作目录生成 `config.yml`，从 jar 内置模板生成，填写后重启生效：
 
-```properties
-# config.properties
+```yaml
+# config.yml
 # ===== 数据库连接 =====
-spring.datasource.url=jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-spring.datasource.username=你的用户名
-spring.datasource.password=你的密码
+spring:
+  datasource:
+    url: "jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
+    username: 你的用户名
+    password: "你的密码"
 
 # ===== 后台访问凭证 =====
-blog.admin.key=你的后台凭证
+blog:
+  admin:
+    key: "你的后台凭证"
 
-# ===== 上传目录 =====
-blog.upload.dir=uploads
+  # ===== 上传目录 =====
+  upload:
+    dir: uploads
 
-# ===== 关于页头像（URL，留空则不显示）=====
-blog.about.avatar=/images/xxx.jpg
+  # ===== 关于页头像（URL，留空则不显示）=====
+  about:
+    avatar: "/images/xxx.jpg"
 
-# ===== 备案信息（可选，留空则不显示）=====
-blog.beian.icp=xxxxx
-blog.beian.icp-url=https://beian.miit.gov.cn/#/Integrated/index
-blog.beian.gongan=xxxxx
-blog.beian.gongan-url=https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx
+  # ===== 备案信息（可选，留空则不显示）=====
+  beian:
+    icp: "浙ICP备xxxx号"
+    icp-url: "https://beian.miit.gov.cn/#/Integrated/index"
+    gongan: "浙公网安备xxxx号"
+    gongan-url: "https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx"
 ```
 
 ### 2. 打包前端

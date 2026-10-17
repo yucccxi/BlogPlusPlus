@@ -16,8 +16,8 @@ public class BlogPlusApplication {
 
     private static final Logger log = LoggerFactory.getLogger(BlogPlusApplication.class);
 
-    private static final String CONFIG_FILE = "config.properties";
-    private static final String CONFIG_TEMPLATE = "/config.properties.template";
+    private static final String CONFIG_FILE = "config.yml";
+    private static final String CONFIG_TEMPLATE = "/config.yml.template";
 
     public static void main(String[] args) {
         ensureConfigFile();
