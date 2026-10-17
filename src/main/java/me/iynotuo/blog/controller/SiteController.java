@@ -16,16 +16,19 @@ public class SiteController {
     private final String icpUrl;
     private final String gongan;
     private final String gonganUrl;
+    private final String avatar;
 
     public SiteController(
             @Value("${blog.beian.icp:}") String icp,
             @Value("${blog.beian.icp-url:}") String icpUrl,
             @Value("${blog.beian.gongan:}") String gongan,
-            @Value("${blog.beian.gongan-url:}") String gonganUrl) {
+            @Value("${blog.beian.gongan-url:}") String gonganUrl,
+            @Value("${blog.about.avatar:}") String avatar) {
         this.icp = icp;
         this.icpUrl = icpUrl;
         this.gongan = gongan;
         this.gonganUrl = gonganUrl;
+        this.avatar = avatar;
     }
 
     @GetMapping("/beian")
@@ -33,5 +36,12 @@ public class SiteController {
         return new BeianInfo(icp, icpUrl, gongan, gonganUrl);
     }
 
+    @GetMapping("/about")
+    public AboutInfo about() {
+        return new AboutInfo(avatar);
+    }
+
     public record BeianInfo(String icp, String icpUrl, String gongan, String gonganUrl) {}
+
+    public record AboutInfo(String avatar) {}
 }

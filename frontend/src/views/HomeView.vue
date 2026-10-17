@@ -1,11 +1,11 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { toast } from 'vue3-toastify'
 
 const posts = ref([])
 const pinned = ref([])
-const error = ref('')
-const loading = ref(true)
-
+const postsLoading = ref(true)
+const pinnedLoading = ref(true)
 const page = ref(1)
 const size = 10
 const total = ref(0)
@@ -13,8 +13,7 @@ const total = ref(0)
 const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size)))
 
 async function loadPosts() {
-  loading.value = true
-  error.value = ''
+  postsLoading.value = true
   try {
     const res = await fetch(`/api/posts?page=${page.value}&size=${size}`)
     if (!res.ok) throw new Error('加载文章失败')
@@ -22,20 +21,27 @@ async function loadPosts() {
     posts.value = data.items || []
     total.value = data.total || 0
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message || '加载文章失败')
   } finally {
-    loading.value = false
+    postsLoading.value = false
   }
 }
 
-onMounted(async () => {
-  await loadPosts()
+async function loadPinned() {
+  pinnedLoading.value = true
   try {
-    const pinnedRes = await fetch('/api/posts/pinned')
-    if (pinnedRes.ok) pinned.value = await pinnedRes.json()
+    const res = await fetch('/api/posts/pinned')
+    if (res.ok) pinned.value = await res.json()
   } catch {
     pinned.value = []
+  } finally {
+    pinnedLoading.value = false
   }
+}
+
+onMounted(() => {
+  loadPosts()
+  loadPinned()
 })
 
 function goPage(p) {
@@ -57,9 +63,14 @@ function formatDate(value) {
 <template>
   <div class="home">
     <div class="main-col">
+      <div v-if="postsLoading" class="post-list">
+        <div v-for="n in 4" :key="n" class="post-card skeleton-card">
+          <div class="skeleton-line skeleton-title"></div>
+          <div class="skeleton-line skeleton-text"></div>
+          <div class="skeleton-line skeleton-text short"></div>
+        </div>
+      </div>
 
-      <p v-if="loading" class="hint">加载中...</p>
-      <p v-else-if="error" class="hint error">{{ error }}</p>
       <p v-else-if="!posts.length" class="hint">暂无文章</p>
 
       <div v-else class="post-list">
@@ -101,9 +112,12 @@ function formatDate(value) {
       </nav>
     </div>
 
-    <aside v-if="pinned.length" class="side-col">
+    <aside v-if="pinnedLoading || pinned.length" class="side-col">
       <h2 class="side-title">已固定</h2>
-      <ul class="pinned-list">
+      <ul v-if="pinnedLoading" class="pinned-list">
+        <li v-for="n in 3" :key="n" class="skeleton-item"></li>
+      </ul>
+      <ul v-else class="pinned-list">
         <li v-for="post in pinned" :key="post.id">
           <RouterLink :to="`/posts/${post.slug}`" class="pinned-link">
             {{ post.title }}
@@ -155,10 +169,6 @@ function formatDate(value) {
 
 .hint {
   color: var(--text-muted);
-}
-
-.hint.error {
-  color: #d1242f;
 }
 
 .post-list {
@@ -249,6 +259,57 @@ function formatDate(value) {
 
 .pinned-link:hover {
   color: var(--accent);
+}
+
+.skeleton-item {
+  height: 1rem;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eef0f3 25%, #f7f7f8 50%, #eef0f3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skeleton-item:nth-child(2) {
+  width: 80%;
+}
+
+.skeleton-item:nth-child(3) {
+  width: 60%;
+}
+
+.skeleton-line {
+  border-radius: 4px;
+  background: linear-gradient(90deg, #eef0f3 25%, #f7f7f8 50%, #eef0f3 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+.skeleton-card {
+  cursor: default;
+}
+
+.skeleton-title {
+  height: 1.1rem;
+  width: 40%;
+  margin-bottom: 0.75rem;
+}
+
+.skeleton-text {
+  height: 0.85rem;
+  margin-bottom: 0.5rem;
+}
+
+.skeleton-text.short {
+  width: 70%;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 
 .pagination {

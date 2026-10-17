@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
+import { toast } from 'vue3-toastify'
 import { authHeaders } from '@/admin'
 import { renderMarkdown, onMarkdownClick } from '@/markdown'
 
@@ -19,7 +20,6 @@ const form = ref({
   tagsText: '',
 })
 
-const error = ref('')
 const loading = ref(false)
 const showSettings = ref(false)
 
@@ -60,16 +60,15 @@ async function loadPost(id) {
     }
     savedForm.value = { ...form.value }
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message)
   } finally {
     loading.value = false
   }
 }
 
 async function save() {
-  error.value = ''
   if (!form.value.title.trim() || !form.value.content.trim()) {
-    error.value = '标题和内容不能为空'
+    toast.error('标题和内容不能为空')
     return
   }
   const body = {
@@ -95,9 +94,10 @@ async function save() {
     if (res.status === 401) throw new Error('凭证无效')
     if (!res.ok) throw new Error('保存失败')
     savedForm.value = { ...form.value }
+    toast.success('已保存')
     router.push('/console')
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message)
   }
 }
 
@@ -132,7 +132,6 @@ onBeforeRouteLeave(() => {
       </div>
     </header>
 
-    <p v-if="error" class="hint error">{{ error }}</p>
     <p v-if="loading" class="hint">加载中...</p>
 
     <div v-else class="panes">
@@ -250,10 +249,6 @@ onBeforeRouteLeave(() => {
 .hint {
   color: var(--text-muted);
   font-size: 0.9rem;
-}
-
-.hint.error {
-  color: #d1242f;
 }
 
 /* markdown 预览排版 */

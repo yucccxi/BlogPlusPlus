@@ -40,9 +40,10 @@ public class SearchController {
 
         List<Result> results = new ArrayList<>();
         for (Post post : postDao.findPublished()) {
-            String text = toPlainText(post.getContent());
-            List<Snippet> snippets = buildSnippets(text, lowerQuery);
-            if (!snippets.isEmpty()) {
+            List<Snippet> snippets = buildSnippets(toPlainText(post.getContent()), lowerQuery);
+            boolean titleMatched = post.getTitle() != null
+                    && post.getTitle().toLowerCase(Locale.ROOT).contains(lowerQuery);
+            if (!snippets.isEmpty() || titleMatched) {
                 results.add(new Result(post.getSlug(), post.getTitle(), post.getTags(),
                         post.getPublishedAt(), snippets));
             }

@@ -85,7 +85,6 @@ CREATE TABLE posts (
     --spring.datasource.username=你的用户名
     --spring.datasource.password=你的密码
     --blog.admin.key=你的后台凭证
-    --blog.upload.dir=uploads
     --blog.beian.icp=xxxxx
     --blog.beian.icp-url=https://beian.miit.gov.cn/#/Integrated/index
     --blog.beian.gongan=xxxxx

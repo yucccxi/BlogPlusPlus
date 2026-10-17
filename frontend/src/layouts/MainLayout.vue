@@ -24,6 +24,7 @@ onMounted(async () => {
       <nav class="nav">
         <RouterLink to="/" class="nav-link" exact-active-class="active">首页</RouterLink>
         <RouterLink to="/search" class="nav-link" active-class="active">搜索</RouterLink>
+        <RouterLink to="/about" class="nav-link" active-class="active">关于</RouterLink>
       </nav>
 
       <div class="sidebar-footer">
@@ -40,7 +41,11 @@ onMounted(async () => {
     </aside>
 
     <main class="content">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </RouterView>
       <footer v-if="beian && (beian.icp || beian.gongan)" class="mobile-footer">
         <div v-if="beian.icp" class="beian-row">
           <a :href="beian.icpUrl || '#'" target="_blank" rel="noopener">{{ beian.icp }}</a>
@@ -154,6 +159,7 @@ onMounted(async () => {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 2.5rem 3rem;
 }
 

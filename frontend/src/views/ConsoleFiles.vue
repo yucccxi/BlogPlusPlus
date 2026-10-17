@@ -1,11 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import { toast } from 'vue3-toastify'
 import { authHeaders } from '@/admin'
 
 const type = ref('image')
 const files = ref([])
-const error = ref('')
-const message = ref('')
 const loading = ref(false)
 const uploading = ref(false)
 const progress = ref(0)
@@ -13,7 +12,6 @@ const progress = ref(0)
 const fileInput = ref(null)
 
 async function load() {
-  error.value = ''
   loading.value = true
   try {
     const res = await fetch(`/api/admin/files?type=${type.value}`, {
@@ -23,7 +21,7 @@ async function load() {
     if (!res.ok) throw new Error('加载失败')
     files.value = await res.json()
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message)
   } finally {
     loading.value = false
   }
@@ -31,8 +29,6 @@ async function load() {
 
 function switchType(t) {
   type.value = t
-  message.value = ''
-  error.value = ''
   load()
 }
 
@@ -44,8 +40,6 @@ function onFileChange(e) {
   const file = e.target.files?.[0]
   e.target.value = ''
   if (!file) return
-  error.value = ''
-  message.value = ''
   uploadFile(file)
 }
 
@@ -67,23 +61,23 @@ function uploadFile(file) {
     xhr.onload = async () => {
       uploading.value = false
       if (xhr.status === 401) {
-        error.value = '凭证无效'
+        toast.error('凭证无效')
       } else if (xhr.status === 413) {
-        error.value = '文件超过 128MB 限制'
+        toast.error('文件超过 128MB 限制')
       } else if (xhr.status >= 200 && xhr.status < 300) {
         const item = JSON.parse(xhr.responseText)
-        message.value = `已上传：${item.url}`
+        toast.success(`已上传：${item.url}`)
         progress.value = 100
         await load()
       } else {
-        error.value = '上传失败'
+        toast.error('上传失败')
       }
       resolve()
     }
 
     xhr.onerror = () => {
       uploading.value = false
-      error.value = '上传失败'
+      toast.error('上传失败')
       resolve()
     }
 
@@ -96,16 +90,14 @@ function uploadFile(file) {
 async function copyUrl(item) {
   try {
     await navigator.clipboard.writeText(item.url)
-    message.value = `已复制链接：${item.url}`
+    toast.success('已复制链接')
   } catch {
-    message.value = item.url
+    toast.error('复制失败')
   }
 }
 
 async function remove(item) {
   if (!confirm(`确认删除「${item.name}」？`)) return
-  error.value = ''
-  message.value = ''
   try {
     const res = await fetch(`/api/admin/files/${type.value}/${item.name}`, {
       method: 'DELETE',
@@ -113,10 +105,10 @@ async function remove(item) {
     })
     if (res.status === 401) throw new Error('凭证无效')
     if (!res.ok) throw new Error('删除失败')
-    message.value = '已删除'
+    toast.success('已删除')
     await load()
   } catch (err) {
-    error.value = err.message
+    toast.error(err.message)
   }
 }
 
@@ -163,9 +155,6 @@ onMounted(load)
         普通文件
       </button>
     </div>
-
-    <p v-if="error" class="hint error">{{ error }}</p>
-    <p v-if="message" class="hint success">{{ message }}</p>
 
     <div v-if="uploading" class="progress-wrap">
       <div class="progress-bar">
@@ -244,14 +233,6 @@ onMounted(load)
 .hint {
   color: var(--text-muted);
   font-size: 0.9rem;
-}
-
-.hint.error {
-  color: #d1242f;
-}
-
-.hint.success {
-  color: #1a7f37;
 }
 
 .progress-wrap {

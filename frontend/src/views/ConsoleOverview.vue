@@ -1,18 +1,17 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { toast } from 'vue3-toastify'
 import { adminStore, authHeaders } from '@/admin'
 
 const router = useRouter()
 const posts = ref([])
-const error = ref('')
 const loading = ref(true)
 
 const publishedPosts = computed(() => posts.value.filter((p) => p.published))
 const draftPosts = computed(() => posts.value.filter((p) => !p.published))
 
 async function load() {
-  error.value = ''
   loading.value = true
   if (!adminStore.key) {
     posts.value = []
@@ -25,7 +24,7 @@ async function load() {
     if (!res.ok) throw new Error('加载文章失败')
     posts.value = await res.json()
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message)
   } finally {
     loading.value = false
   }
@@ -48,9 +47,10 @@ async function deletePost(post) {
     })
     if (res.status === 401) throw new Error('凭证无效')
     if (!res.ok) throw new Error('删除失败')
+    toast.success('已删除')
     await load()
   } catch (e) {
-    error.value = e.message
+    toast.error(e.message)
   }
 }
 
@@ -76,7 +76,6 @@ watch(() => adminStore.key, load)
 
     <p v-if="!adminStore.key" class="hint">请先在上方输入访问凭证</p>
     <p v-else-if="loading" class="hint">加载中...</p>
-    <p v-else-if="error" class="hint error">{{ error }}</p>
 
     <template v-else>
       <section class="section">
@@ -149,10 +148,6 @@ watch(() => adminStore.key, load)
 .hint {
   color: var(--text-muted);
   font-size: 0.9rem;
-}
-
-.hint.error {
-  color: #d1242f;
 }
 
 .post-list {

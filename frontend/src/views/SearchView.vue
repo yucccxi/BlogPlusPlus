@@ -1,39 +1,29 @@
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
+import { ref } from 'vue'
 
 const query = ref('')
+const searchedQuery = ref('')
 const results = ref([])
 const loading = ref(false)
 const searched = ref(false)
-let timer = null
 
-watch(query, (val) => {
-  clearTimeout(timer)
-  const q = val.trim()
-  if (!q) {
-    results.value = []
-    searched.value = false
-    loading.value = false
-    return
-  }
+async function doSearch() {
+  const q = query.value.trim()
+  if (!q) return
+  searchedQuery.value = q
+  searched.value = true
   loading.value = true
-  timer = setTimeout(async () => {
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
-      if (!res.ok) throw new Error('搜索失败')
-      const data = await res.json()
-      results.value = data.results || []
-      searched.value = true
-    } catch {
-      results.value = []
-      searched.value = true
-    } finally {
-      loading.value = false
-    }
-  }, 300)
-})
-
-onBeforeUnmount(() => clearTimeout(timer))
+  try {
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`)
+    if (!res.ok) throw new Error('搜索失败')
+    const data = await res.json()
+    results.value = data.results || []
+  } catch {
+    results.value = []
+  } finally {
+    loading.value = false
+  }
+}
 
 function escapeHtml(s) {
   return s
@@ -50,6 +40,21 @@ function formatDate(value) {
     month: 'long',
     day: 'numeric',
   })
+}
+
+// 标题命中时高亮关键词
+function highlightTitle(title) {
+  const q = searchedQuery.value
+  if (!q) return escapeHtml(title)
+  const lower = title.toLowerCase()
+  const lq = q.toLowerCase()
+  const idx = lower.indexOf(lq)
+  if (idx < 0) return escapeHtml(title)
+  return (
+    escapeHtml(title.slice(0, idx)) +
+    `<mark>${escapeHtml(title.slice(idx, idx + q.length))}</mark>` +
+    escapeHtml(title.slice(idx + q.length))
+  )
 }
 
 // 根据片段中的匹配起止位置，插入 <mark> 高亮
@@ -69,42 +74,56 @@ function highlightSnippet(snippet) {
 </script>
 
 <template>
-  <div class="search-page">
-    <header class="page-header">
-      <h1>搜索</h1>
-      <p class="subtitle">搜索所有已发布文章的内容</p>
-    </header>
-
-    <div class="search-box">
-      <input
-        v-model="query"
-        type="search"
-        class="search-input"
-        placeholder="输入关键词搜索文章内容..."
-        autofocus
-      />
+  <div class="search-page" :class="{ hero: !searched }">
+    <!-- 首页模式：居中大搜索框 -->
+    <div v-if="!searched" class="hero-mode">
+      <h1 class="hero-logo">Blog++</h1>
+      <form class="hero-form" @submit.prevent="doSearch">
+        <input
+          v-model="query"
+          type="search"
+          class="search-input"
+          placeholder="输入关键词搜索文章"
+          autofocus
+        />
+      </form>
     </div>
 
-    <p v-if="loading" class="hint">搜索中...</p>
-    <p v-else-if="searched && !results.length" class="hint">没有找到匹配的文章</p>
+    <!-- 结果模式 -->
+    <template v-else>
+      <form class="result-form" @submit.prevent="doSearch">
+        <input
+          v-model="query"
+          type="search"
+          class="search-input"
+          placeholder="输入关键词搜索文章"
+        />
+      </form>
 
-    <div v-if="results.length" class="results">
-      <div v-for="r in results" :key="r.slug" class="result">
-        <RouterLink :to="`/posts/${r.slug}`" class="result-title">{{ r.title }}</RouterLink>
-        <div class="result-meta">
-          <time v-if="r.publishedAt" class="result-date">{{ formatDate(r.publishedAt) }}</time>
-          <span v-if="r.tags && r.tags.length" class="tag-list">
-            <span v-for="tag in r.tags" :key="tag" class="tag">{{ tag }}</span>
-          </span>
+      <p v-if="loading" class="hint">搜索中...</p>
+      <p v-else-if="!results.length" class="hint">没有找到匹配「{{ searchedQuery }}」的文章</p>
+
+      <div v-else class="results">
+        <div v-for="r in results" :key="r.slug" class="result">
+          <RouterLink :to="`/posts/${r.slug}`" class="result-title">
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <span v-html="highlightTitle(r.title)"></span>
+          </RouterLink>
+          <div class="result-meta">
+            <time v-if="r.publishedAt" class="result-date">{{ formatDate(r.publishedAt) }}</time>
+            <span v-if="r.tags && r.tags.length" class="tag-list">
+              <span v-for="tag in r.tags" :key="tag" class="tag">{{ tag }}</span>
+            </span>
+          </div>
+          <p
+            v-for="(s, i) in r.snippets"
+            :key="i"
+            class="snippet"
+            v-html="highlightSnippet(s)"
+          ></p>
         </div>
-        <p
-          v-for="(s, i) in r.snippets"
-          :key="i"
-          class="snippet"
-          v-html="highlightSnippet(s)"
-        ></p>
       </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -114,38 +133,55 @@ function highlightSnippet(snippet) {
   margin: 0 auto;
 }
 
-.page-header {
-  margin-bottom: 1.5rem;
+/* 首页模式 */
+.hero-mode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  text-align: center;
 }
 
-.page-header h1 {
-  margin: 0 0 0.25rem;
-  font-size: 1.9rem;
+.hero-logo {
+  margin: 0 0 2rem;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
 }
 
-.subtitle {
-  margin: 0;
-  color: var(--text-muted);
-}
-
-.search-box {
-  margin-bottom: 1.5rem;
+.hero-form {
+  display: flex;
+  width: 100%;
+  max-width: 640px;
 }
 
 .search-input {
-  width: 100%;
-  padding: 0.7rem 1rem;
+  flex: 1;
+  padding: 0.75rem 1.1rem;
   font-size: 1rem;
   color: var(--text);
   background: var(--sidebar-bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 24px;
   outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .search-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(47, 129, 247, 0.15);
+}
+
+/* 结果模式 */
+.result-form {
+  display: flex;
+  margin-bottom: 1.5rem;
+}
+
+.result-form .search-input {
+  border-radius: 8px;
 }
 
 .hint {
@@ -175,6 +211,14 @@ function highlightSnippet(snippet) {
 
 .result-title:hover {
   color: var(--accent);
+}
+
+.result-title :deep(mark),
+.snippet :deep(mark) {
+  background: #ffe58f;
+  color: var(--text);
+  border-radius: 3px;
+  padding: 0 2px;
 }
 
 .result-meta {
@@ -212,17 +256,14 @@ function highlightSnippet(snippet) {
   overflow-wrap: break-word;
 }
 
-.snippet :deep(mark) {
-  background: #ffe58f;
-  color: var(--text);
-  border-radius: 3px;
-  padding: 0 2px;
-}
-
 /* 手机端 */
 @media (max-width: 768px) {
-  .page-header h1 {
-    font-size: 1.5rem;
+  .hero-mode {
+    min-height: 50vh;
+  }
+
+  .hero-logo {
+    font-size: 2.25rem;
   }
 
   .result {

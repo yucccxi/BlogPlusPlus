@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { RouterLink, RouterView } from 'vue-router'
+import { toast } from 'vue3-toastify'
 import { adminStore, setAdminKey } from '@/admin'
 
 const route = useRoute()
@@ -9,14 +10,12 @@ const route = useRoute()
 const keyInput = ref(adminStore.key)
 const authorized = ref(false)
 const verifying = ref(false)
-const error = ref('')
 
 async function verify() {
   if (!keyInput.value.trim()) {
-    error.value = '请输入访问凭证'
+    toast.error('请输入访问凭证')
     return
   }
-  error.value = ''
   verifying.value = true
   try {
     const res = await fetch('/api/admin/verify', {
@@ -26,12 +25,12 @@ async function verify() {
       setAdminKey(keyInput.value)
       authorized.value = true
     } else if (res.status === 401) {
-      error.value = '凭证无效'
+      toast.error('凭证无效')
     } else {
-      error.value = '验证失败'
+      toast.error('验证失败')
     }
   } catch {
-    error.value = '无法连接服务器'
+    toast.error('无法连接服务器')
   } finally {
     verifying.value = false
   }
@@ -57,7 +56,6 @@ onMounted(() => {
         class="gate-input"
         @keyup.enter="verify"
       />
-      <p v-if="error" class="gate-error">{{ error }}</p>
       <button type="button" class="gate-btn" :disabled="verifying" @click="verify">
         {{ verifying ? '验证中...' : '进入后台' }}
       </button>
@@ -101,7 +99,11 @@ onMounted(() => {
     </aside>
 
     <main class="content">
-      <RouterView />
+      <RouterView v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" />
+        </transition>
+      </RouterView>
     </main>
   </div>
 </template>
@@ -145,12 +147,6 @@ onMounted(() => {
   font-family: inherit;
   background: #fff;
   color: var(--text);
-}
-
-.gate-error {
-  margin: 0.75rem 0 0;
-  color: #d1242f;
-  font-size: 0.85rem;
 }
 
 .gate-btn {
@@ -248,6 +244,7 @@ onMounted(() => {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
+  scrollbar-gutter: stable;
   padding: 2rem 3rem;
 }
 </style>
