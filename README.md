@@ -9,12 +9,11 @@
 | 后端 | Spring Boot 4.x、Spring JDBC、MySQL |
 | 前端 | Vue 3、Vue Router、Vite |
 | 渲染 | marked、highlight.js、KaTeX |
-| 数据库 | MySQL |
 
 ## 功能
 
 - 主页展示已发布文章，右侧「已固定」栏目展示置顶文章
-- 搜索页 `/search`：全文搜索已发布文章正文，匹配关键词高亮，并展示发布时间与标签
+- 搜索页 `/search`：全文搜索已发布文章正文，匹配关键词高亮
 - 文章详情页右侧目录（ToC），展示 h1-h3 标题并支持点击跳转
 - Markdown 由前端渲染（支持代码高亮 + 复制、行内/块级公式）
   - 图片自动缩小展示，点击可放大查看
@@ -31,17 +30,22 @@
 BlogPlus/
 ├── src/                          # 后端
 │   └── main/java/me/iynotuo/blog/
-│       ├── config/               # 静态资源映射（/images、/files）
-│       ├── controller/           # REST 接口（公开 + 后台 + 文件）
+│       ├── config/               # 静态资源映射、全局异常处理
+│       ├── controller/           # REST 接口（公开 + 后台 + 文件 + 搜索 + 站点配置）
 │       ├── dao/                  # 数据访问层（JdbcClient）
-│       └── entity/               # 实体类
+│       ├── entity/               # 实体类
+│       └── BlogPlusApplication.java  # 启动类
 ├── frontend/                     # 前端
+│   ├── public/                   # 静态资源（favicon、公安备案图标等）
 │   └── src/
+│       ├── assets/               # 全局样式
 │       ├── layouts/              # 布局
-│       ├── views/                # 页面
+│       ├── views/                # 页面（主页/文章/搜索/关于/后台/404）
 │       ├── router/               # 路由
 │       ├── admin.js              # 后台凭证状态
-│       └── markdown.js           # Markdown 渲染工具
+│       ├── markdown.js           # Markdown 渲染工具
+│       ├── App.vue               # 根组件
+│       └── main.js               # 入口
 └── pom.xml
 ```
 
@@ -49,7 +53,7 @@ BlogPlus/
 
 ### 1. 初始化数据库
 
-创建 `blog` 数据库并建表：
+开发与部署都需要先创建 `blog` 数据库并建表：
 
 ```sql
 CREATE DATABASE IF NOT EXISTS blog
@@ -74,31 +78,17 @@ CREATE TABLE posts (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 ```
 
-### 2. 启动后端
+## 开发
 
-数据库连接和管理端 key 通过启动参数提供：
+### 1. 启动后端
 
 ```bash
-./mvnw spring-boot:run \
-  -Dspring-boot.run.arguments="
-    --spring.datasource.url=jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-    --spring.datasource.username=你的用户名
-    --spring.datasource.password=你的密码
-    --blog.admin.key=你的后台凭证
-    --blog.beian.icp=xxxxx
-    --blog.beian.icp-url=https://beian.miit.gov.cn/#/Integrated/index
-    --blog.beian.gongan=xxxxx
-    --blog.beian.gongan-url=https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx
-  "
+./mvnw spring-boot:run
 ```
-
-> 上传文件大小上限（默认 128MB）由 `application.properties` 中的 `spring.servlet.multipart.max-file-size` / `max-request-size` 控制。
->
-> 备案信息（`blog.beian.*`）为可选参数，不配置时侧边栏底部不显示备案号；公安备案图标 `gongan.png` 放置在前端 `frontend/public/` 目录下。
 
 后端默认运行在 `http://localhost:8080`。
 
-### 3. 启动前端
+### 2. 启动前端
 
 ```bash
 cd frontend
@@ -106,30 +96,101 @@ npm install
 npm run dev
 ```
 
-前端默认运行在 `http://localhost`（80 端口），开发环境下 `/api` 请求会代理到 `http://localhost:8080`。
+前端默认运行在 `http://localhost`（80 端口），开发环境下 `/api`、`/images`、`/files` 请求会代理到 `http://localhost:8080`。
+
+## 部署
+
+### 1. 打包后端
+
+```bash
+./mvnw clean package -DskipTests
+```
+
+产物为 `target/BlogPlus-0.0.1-SNAPSHOT.jar`，运行：
+
+```bash
+java -jar target/BlogPlus-0.0.1-SNAPSHOT.jar
+```
+
+首次运行会在工作目录生成 `config.properties`，从 jar 内置模板生成，填写后重启生效：
+
+```properties
+# config.properties
+# ===== 数据库连接 =====
+spring.datasource.url=jdbc:mysql://localhost:3306/blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
+spring.datasource.username=你的用户名
+spring.datasource.password=你的密码
+
+# ===== 后台访问凭证 =====
+blog.admin.key=你的后台凭证
+
+# ===== 上传目录 =====
+blog.upload.dir=uploads
+
+# ===== 关于页头像（URL，留空则不显示）=====
+blog.about.avatar=/images/xxx.jpg
+
+# ===== 备案信息（可选，留空则不显示）=====
+blog.beian.icp=xxxxx
+blog.beian.icp-url=https://beian.miit.gov.cn/#/Integrated/index
+blog.beian.gongan=xxxxx
+blog.beian.gongan-url=https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx
+```
+
+### 2. 打包前端
+
+```bash
+cd frontend
+npm install
+npm run build
+```
+
+产物在 `frontend/dist/`，将整个目录交给静态服务器（如 Nginx）托管。
+
+### 3. 配置反向代理（Nginx 示例）
+
+前端 SPA 与后端 API 通过 Nginx 统一对外，`/api`、`/images`、`/files` 反向代理到后端 8080：
+
+```nginx
+server {
+    listen 80;
+    server_name 你的域名;
+
+    # 前端静态资源
+    root /path/to/frontend/dist;
+    index index.html;
+
+    # SPA 路由兜底
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 后端 API 与上传文件
+    location /api/ {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /images/ {
+        proxy_pass http://127.0.0.1:8080;
+    }
+
+    location /files/ {
+        proxy_pass http://127.0.0.1:8080;
+    }
+}
+```
+
+> 上传文件大小上限（默认 128MB）由 `application.properties` 中的 `spring.servlet.multipart.max-file-size` / `max-request-size` 控制；若经 Nginx 转发，还需将 `client_max_body_size` 调到不小于该值。
+>
+> 备案信息（`blog.beian.*`）为可选配置，不配置时侧边栏底部不显示备案号。
 
 ## 使用
 
 - 主页：`http://localhost/`
-- 后台：手动访问 `http://localhost/console`（不在导航栏中展示），输入与 `blog.admin.key` 相同的凭证进入
-
-## 数据模型
-
-`posts` 表字段：
-
-| 字段 | 类型 | 说明 |
-|---|---|---|
-| `id` | `BIGINT UNSIGNED` | 自增主键 |
-| `slug` | `CHAR(8)` | 8 位文章标识符，唯一 |
-| `title` | `VARCHAR(255)` | 标题 |
-| `summary` | `TEXT` | 摘要，可为空 |
-| `content` | `LONGTEXT` | Markdown 正文 |
-| `is_published` | `BOOLEAN` | 是否发布 |
-| `is_pinned` | `BOOLEAN` | 是否固定 |
-| `tags` | `VARCHAR(255)` | 标签，逗号分隔 |
-| `created_at` | `DATETIME` | 创建时间 |
-| `updated_at` | `DATETIME` | 最后修改时间 |
-| `published_at` | `DATETIME` | 首次发布时间 |
+- 后台：手动访问 `http://localhost/console`，输入与 `blog.admin.key` 相同的凭证进入
 
 ## API 概览
 
