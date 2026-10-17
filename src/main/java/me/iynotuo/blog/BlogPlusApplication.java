@@ -25,7 +25,7 @@ public class BlogPlusApplication {
     }
 
     /**
-     * 首次启动时，从 jar 内置的模板在项目根目录生成 config.properties，
+     * 首次启动时，从 jar 内置的模板在项目根目录生成 config.yml，
      * 之后所有运行时可配置项（数据库连接、后台凭证、上传目录、头像、备案信息）都从这里读取。
      */
     private static void ensureConfigFile() {
