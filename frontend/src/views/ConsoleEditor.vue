@@ -289,7 +289,7 @@ onBeforeRouteLeave(() => {
   margin: 1.25rem 0;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #30363d;
+  border: 1px solid #d0d7de;
 }
 
 .markdown :deep(.code-header) {
@@ -297,8 +297,8 @@ onBeforeRouteLeave(() => {
   align-items: center;
   justify-content: space-between;
   padding: 0.4rem 0.9rem;
-  background: #161b22;
-  color: #8b949e;
+  background: #f6f8fa;
+  color: #57606a;
   font-size: 0.78rem;
 }
 
@@ -309,8 +309,8 @@ onBeforeRouteLeave(() => {
 
 .markdown :deep(.code-copy) {
   background: transparent;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
+  border: 1px solid #d0d7de;
+  color: #57606a;
   border-radius: 5px;
   padding: 0.15rem 0.6rem;
   font-size: 0.75rem;
@@ -319,14 +319,14 @@ onBeforeRouteLeave(() => {
 }
 
 .markdown :deep(.code-copy:hover) {
-  border-color: #58a6ff;
-  color: #58a6ff;
+  border-color: #2f81f7;
+  color: #2f81f7;
 }
 
 .markdown :deep(pre) {
   margin: 0;
   padding: 1rem 1.1rem;
-  background: #0d1117;
+  background: #f6f8fa;
   overflow-x: auto;
   font-size: 0.9rem;
   line-height: 1.6;
@@ -335,6 +335,7 @@ onBeforeRouteLeave(() => {
 .markdown :deep(pre code) {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9rem;
+  background: transparent;
 }
 
 /* 表格：外层容器横向滚动，窄屏下不撑破页面 */

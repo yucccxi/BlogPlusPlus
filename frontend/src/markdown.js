@@ -1,7 +1,7 @@
 import { Marked } from 'marked'
 import markedKatex from 'marked-katex-extension'
 import hljs from 'highlight.js'
-import 'highlight.js/styles/github-dark.css'
+import 'highlight.js/styles/github.css'
 import 'katex/dist/katex.min.css'
 
 function escapeHtml(s) {
@@ -35,11 +35,20 @@ marked.use({
       const label = language
         ? `<span class="code-lang">${language}</span>`
         : '<span class="code-lang"></span>'
+      const chevron =
+        '<svg class="code-chevron" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">' +
+        '<path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" ' +
+        'stroke-linecap="round" stroke-linejoin="round"/></svg>'
       return (
         '<div class="code-block">' +
-        `<div class="code-header">${label}<button class="code-copy" type="button">复制</button></div>` +
+        `<div class="code-header">${label}` +
+        '<span class="code-header-actions">' +
+        '<button class="code-copy" type="button">复制</button>' +
+        chevron +
+        '</span></div>' +
+        '<div class="code-body"><div class="code-body-inner">' +
         `<pre><code class="hljs${language ? ' language-' + language : ''}">${highlighted}</code></pre>` +
-        '</div>'
+        '</div></div></div>'
       )
     },
   },
@@ -90,10 +99,19 @@ function buildWithHeadings(html) {
   return { html: doc.body.innerHTML, headings }
 }
 
-// markdown 容器统一点击处理：代码复制 + 图片放大
+// markdown 容器统一点击处理：代码复制 + 代码折叠 + 图片放大
 export function onMarkdownClick(e) {
   onCodeCopy(e)
+  onCodeToggle(e)
   onImageClick(e)
+}
+
+// 点击代码块 header 折叠/展开代码
+function onCodeToggle(e) {
+  if (e.target.closest('.code-copy')) return
+  const header = e.target.closest('.code-header')
+  if (!header) return
+  header.closest('.code-block')?.classList.toggle('collapsed')
 }
 
 export async function onCodeCopy(e) {

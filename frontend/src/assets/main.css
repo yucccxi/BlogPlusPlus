@@ -82,3 +82,38 @@ a:hover {
   opacity: 0;
   transform: translateY(-8px);
 }
+
+/* 代码块折叠动画 */
+.code-block .code-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.code-block .code-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.code-block .code-chevron {
+  transition: transform 0.25s ease;
+}
+
+.code-block.collapsed .code-chevron {
+  transform: rotate(-180deg);
+}
+
+.code-block .code-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.code-block .code-body-inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.code-block.collapsed .code-body {
+  grid-template-rows: 0fr;
+}

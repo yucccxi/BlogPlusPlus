@@ -7,6 +7,7 @@ const route = useRoute()
 const post = ref(null)
 const error = ref('')
 const loading = ref(true)
+const tocCollapsed = ref(false)
 
 const rendered = computed(() =>
   post.value ? renderMarkdown(post.value.content) : { html: '', headings: [] },
@@ -39,6 +40,20 @@ function formatDate(value) {
     day: 'numeric',
   })
 }
+
+// 下载原始 Markdown 文件
+function downloadMarkdown() {
+  if (!post.value) return
+  const blob = new Blob([post.value.content || ''], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `${(post.value.title || 'article').replace(/[\\/:*?"<>|]/g, '_')}.md`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -49,7 +64,12 @@ function formatDate(value) {
     <div v-else-if="post" class="post-layout">
       <article class="post">
         <header class="post-header">
-          <h1 class="post-title">{{ post.title }}</h1>
+          <div class="post-title-row">
+            <h1 class="post-title">{{ post.title }}</h1>
+            <button type="button" class="btn-download" @click="downloadMarkdown">
+              下载 Markdown
+            </button>
+          </div>
           <div class="post-meta">
             <time v-if="post.publishedAt">{{ formatDate(post.publishedAt) }}</time>
             <span v-else>未发布</span>
@@ -65,17 +85,36 @@ function formatDate(value) {
         </div>
       </article>
 
-      <aside v-if="rendered.headings.length" class="toc">
-        <h2 class="toc-title">目录</h2>
-        <ul class="toc-list">
-          <li
-            v-for="h in rendered.headings"
-            :key="h.id"
-            :class="['toc-item', 'toc-level-' + h.level]"
-          >
-            <a :href="'#' + h.id" @click.prevent="scrollToHeading(h.id)">{{ h.text }}</a>
-          </li>
-        </ul>
+      <aside v-if="rendered.headings.length" class="toc" :class="{ collapsed: tocCollapsed }">
+        <button
+          type="button"
+          class="toc-toggle"
+          :title="tocCollapsed ? '展开目录' : '折叠目录'"
+          @click="tocCollapsed = !tocCollapsed"
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              d="M6 4l4 4-4 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <div class="toc-inner">
+          <h2 class="toc-title">目录</h2>
+          <ul class="toc-list">
+            <li
+              v-for="h in rendered.headings"
+              :key="h.id"
+              :class="['toc-item', 'toc-level-' + h.level]"
+            >
+              <a :href="'#' + h.id" @click.prevent="scrollToHeading(h.id)">{{ h.text }}</a>
+            </li>
+          </ul>
+        </div>
       </aside>
     </div>
   </div>
@@ -104,9 +143,55 @@ function formatDate(value) {
   position: sticky;
   top: 3rem;
   max-height: calc(100vh - 6rem);
+  overflow-x: hidden;
   overflow-y: auto;
   border-left: 1px solid var(--border);
-  padding: 1rem 0 1rem 1.25rem;
+  padding: 1rem 0 1rem 2.5rem;
+  transition:
+    width 0.3s ease,
+    padding-left 0.3s ease;
+}
+
+.toc.collapsed {
+  width: 40px;
+  padding-left: 0;
+  border-left: none;
+  overflow-y: hidden;
+}
+
+.toc-toggle {
+  position: absolute;
+  left: 0;
+  top: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--sidebar-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  z-index: 1;
+}
+
+.toc-toggle:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.toc-toggle svg {
+  transition: transform 0.3s ease;
+}
+
+.toc.collapsed .toc-toggle svg {
+  transform: rotate(180deg);
+}
+
+.toc-inner {
+  width: 240px;
 }
 
 .toc-title {
@@ -162,10 +247,36 @@ function formatDate(value) {
   border-bottom: 1px solid var(--border);
 }
 
+.post-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
 .post-title {
-  margin: 0 0 0.75rem;
+  margin: 0;
   font-size: 2rem;
   line-height: 1.3;
+  min-width: 0;
+}
+
+.btn-download {
+  flex-shrink: 0;
+  padding: 0.4rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-download:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .post-meta {
@@ -244,7 +355,7 @@ function formatDate(value) {
   max-width: 100%;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px solid #30363d;
+  border: 1px solid #d0d7de;
 }
 
 .markdown :deep(.code-header) {
@@ -252,8 +363,8 @@ function formatDate(value) {
   align-items: center;
   justify-content: space-between;
   padding: 0.4rem 0.9rem;
-  background: #161b22;
-  color: #8b949e;
+  background: #f6f8fa;
+  color: #57606a;
   font-size: 0.78rem;
 }
 
@@ -264,8 +375,8 @@ function formatDate(value) {
 
 .markdown :deep(.code-copy) {
   background: transparent;
-  border: 1px solid #30363d;
-  color: #c9d1d9;
+  border: 1px solid #d0d7de;
+  color: #57606a;
   border-radius: 5px;
   padding: 0.15rem 0.6rem;
   font-size: 0.75rem;
@@ -274,14 +385,14 @@ function formatDate(value) {
 }
 
 .markdown :deep(.code-copy:hover) {
-  border-color: #58a6ff;
-  color: #58a6ff;
+  border-color: #2f81f7;
+  color: #2f81f7;
 }
 
 .markdown :deep(pre) {
   margin: 0;
   padding: 1rem 1.1rem;
-  background: #0d1117;
+  background: #f6f8fa;
   overflow-x: auto;
   max-width: 100%;
   font-size: 0.9rem;
@@ -292,6 +403,7 @@ function formatDate(value) {
   font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
   font-size: 0.9rem;
   white-space: pre;
+  background: transparent;
 }
 
 /* 表格：外层容器横向滚动，窄屏下不撑破页面 */
