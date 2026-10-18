@@ -1,8 +1,4 @@
 import { Marked } from 'marked'
-import markedKatex from 'marked-katex-extension'
-import hljs from 'highlight.js'
-import 'highlight.js/styles/github.css'
-import 'katex/dist/katex.min.css'
 
 function escapeHtml(s) {
   return s
@@ -12,12 +8,60 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;')
 }
 
+// 全局 katex（由 CDN 注入），未加载时降级为纯文本
+function renderMath(text, displayMode) {
+  const katex = window.katex
+  if (!katex) {
+    return `<code>${escapeHtml(text)}</code>`
+  }
+  try {
+    return katex.renderToString(text, { throwOnError: false, displayMode })
+  } catch {
+    return escapeHtml(text)
+  }
+}
+
 const marked = new Marked()
 
-// 公式渲染：$...$ 行内公式，$$...$$ 块级公式
-marked.use(markedKatex({ throwOnError: false, nonStandard: true }))
+// 公式渲染：$...$ 行内公式，$$...$$ 块级公式（自实现，避免依赖 npm 版 katex）
+marked.use({
+  extensions: [
+    {
+      name: 'blockMath',
+      level: 'block',
+      start(src) {
+        return src.indexOf('$$')
+      },
+      tokenizer(src) {
+        const m = src.match(/^\$\$([\s\S]+?)\$\$/)
+        if (m) {
+          return { type: 'blockMath', raw: m[0], text: m[1].trim() }
+        }
+      },
+      renderer(token) {
+        return renderMath(token.text, true)
+      },
+    },
+    {
+      name: 'inlineMath',
+      level: 'inline',
+      start(src) {
+        return src.indexOf('$')
+      },
+      tokenizer(src) {
+        const m = src.match(/^\$([^$\n]+)\$/)
+        if (m) {
+          return { type: 'inlineMath', raw: m[0], text: m[1] }
+        }
+      },
+      renderer(token) {
+        return renderMath(token.text, false)
+      },
+    },
+  ],
+})
 
-// 代码块渲染：语法高亮 + 语言标签 + 复制按钮
+// 代码块渲染：语法高亮 + 语言标签 + 复制按钮 + 折叠
 marked.use({
   useNewRenderer: true,
   renderer: {
@@ -28,7 +72,8 @@ marked.use({
         code = code.text
       }
       const lang = (infoString || '').trim()
-      const language = hljs.getLanguage(lang) ? lang : ''
+      const hljs = window.hljs
+      const language = hljs && hljs.getLanguage(lang) ? lang : ''
       const highlighted = language
         ? hljs.highlight(code.replace(/\n$/, ''), { language }).value
         : escapeHtml(code.replace(/\n$/, ''))

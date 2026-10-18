@@ -24,3 +24,13 @@ blog:
     icp-url: ""
     gongan: ""
     gongan-url: ""
+
+  # ===== 前端 CDN（highlight.js / KaTeX 外部加载）=====
+  # 默认使用 jsDelivr，国内访问偏慢时可整体替换域名，例如：
+  #   cdn.jsdelivr.net  ->  cdn.jsdmirror.com（腾讯云 EdgeOne）
+  #   cdn.jsdelivr.net  ->  jsdelivr.aby.pub / jsd.cdn.zzko.cn
+  cdn:
+    highlight-js: "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"
+    highlight-css: "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css"
+    katex-js: "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+    katex-css: "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"

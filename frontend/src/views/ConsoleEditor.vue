@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { toast } from 'vue3-toastify'
 import { authHeaders } from '@/admin'
@@ -21,6 +21,8 @@ const form = ref({
 
 const loading = ref(false)
 const showSettings = ref(false)
+const leftCollapsed = ref(false)
+const rightCollapsed = ref(false)
 
 // 已保存的表单快照，用于判断是否有未保存的更改
 const savedForm = ref(null)
@@ -39,6 +41,31 @@ const dirty = computed(() => {
 })
 
 const previewHtml = computed(() => renderMarkdown(form.value.content).html)
+
+// 编辑导致预览重新渲染时，保持已折叠代码块的折叠状态
+const collapsedCodes = new Set()
+
+function captureCollapsed() {
+  collapsedCodes.clear()
+  document.querySelectorAll('.pane-preview .code-block.collapsed').forEach((block) => {
+    const code = block.querySelector('code')?.textContent ?? ''
+    if (code) collapsedCodes.add(code)
+  })
+}
+
+function restoreCollapsed() {
+  document.querySelectorAll('.pane-preview .code-block').forEach((block) => {
+    const code = block.querySelector('code')?.textContent ?? ''
+    if (code && collapsedCodes.has(code)) {
+      block.classList.add('collapsed')
+    }
+  })
+}
+
+watch(previewHtml, () => {
+  captureCollapsed()
+  nextTick(restoreCollapsed)
+})
 
 async function loadPost(id) {
   loading.value = true
@@ -120,7 +147,7 @@ onBeforeRouteLeave(() => {
 
 <template>
   <div class="editor">
-    <header class="page-header">
+    <header class="editor-header">
       <h1>{{ isEdit ? '编辑文章' : '写文章' }}</h1>
       <div class="header-actions">
         <button type="button" class="btn" @click="showSettings = true">设置</button>
@@ -130,7 +157,11 @@ onBeforeRouteLeave(() => {
 
     <p v-if="loading" class="hint">加载中...</p>
 
-    <div v-else class="panes">
+    <div
+      v-else
+      class="editor-body"
+      :class="{ 'left-collapsed': leftCollapsed, 'right-collapsed': rightCollapsed }"
+    >
       <section class="pane pane-edit">
         <textarea
           v-model="form.content"
@@ -140,9 +171,48 @@ onBeforeRouteLeave(() => {
         ></textarea>
       </section>
 
+      <div class="divider">
+        <button
+          type="button"
+          class="fold-btn"
+          :title="leftCollapsed ? '展开编辑区' : '折叠编辑区'"
+          @click="leftCollapsed = !leftCollapsed"
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              d="M10 4l-4 4 4 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          class="fold-btn"
+          :title="rightCollapsed ? '展开预览区' : '折叠预览区'"
+          @click="rightCollapsed = !rightCollapsed"
+        >
+          <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+            <path
+              d="M6 4l4 4-4 4"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </div>
+
       <section class="pane pane-preview">
-        <!-- eslint-disable-next-line vue/no-v-html -->
-        <div class="markdown" v-html="previewHtml" @click="onMarkdownClick"></div>
+        <div class="preview-inner">
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div class="markdown" v-html="previewHtml" @click="onMarkdownClick"></div>
+        </div>
       </section>
     </div>
 
@@ -178,20 +248,26 @@ onBeforeRouteLeave(() => {
 
 <style scoped>
 .editor {
-  max-width: 1200px;
-  margin: 0 auto;
+  margin: -2rem -3rem;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.page-header {
+.editor-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--sidebar-bg);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
 }
 
-.page-header h1 {
+.editor-header h1 {
   margin: 0;
-  font-size: 1.6rem;
+  font-size: 1.3rem;
 }
 
 .header-actions {
@@ -199,30 +275,83 @@ onBeforeRouteLeave(() => {
   gap: 0.5rem;
 }
 
-.panes {
-  display: flex;
-  gap: 1rem;
-  height: calc(100vh - 140px);
+.editor-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 32px 1fr;
+  transition: grid-template-columns 0.3s ease;
+}
+
+.editor-body.left-collapsed {
+  grid-template-columns: 0fr 32px 1fr;
+}
+
+.editor-body.right-collapsed {
+  grid-template-columns: 1fr 32px 0fr;
 }
 
 .pane {
-  flex: 1;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--sidebar-bg);
   overflow: hidden;
   display: flex;
   flex-direction: column;
 }
 
 .pane-edit {
-  padding: 0;
+  background: var(--sidebar-bg);
 }
 
 .pane-preview {
   overflow-y: auto;
+  background: #fff;
+}
+
+.preview-inner {
   padding: 1.5rem;
+}
+
+.divider {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.fold-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--sidebar-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.fold-btn:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.fold-btn svg {
+  transition: transform 0.3s ease;
+}
+
+.left-collapsed .fold-btn:first-child svg {
+  transform: rotate(180deg);
+}
+
+.right-collapsed .fold-btn:last-child svg {
+  transform: rotate(180deg);
 }
 
 .markdown-input {
@@ -242,6 +371,7 @@ onBeforeRouteLeave(() => {
 .hint {
   color: var(--text-muted);
   font-size: 0.9rem;
+  padding: 1rem 1.25rem;
 }
 
 /* markdown 预览排版 */

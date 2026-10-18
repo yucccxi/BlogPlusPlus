@@ -17,18 +17,30 @@ public class SiteController {
     private final String gongan;
     private final String gonganUrl;
     private final String avatar;
+    private final String highlightJs;
+    private final String highlightCss;
+    private final String katexJs;
+    private final String katexCss;
 
     public SiteController(
             @Value("${blog.beian.icp:}") String icp,
             @Value("${blog.beian.icp-url:}") String icpUrl,
             @Value("${blog.beian.gongan:}") String gongan,
             @Value("${blog.beian.gongan-url:}") String gonganUrl,
-            @Value("${blog.about.avatar:}") String avatar) {
+            @Value("${blog.about.avatar:}") String avatar,
+            @Value("${blog.cdn.highlight-js:}") String highlightJs,
+            @Value("${blog.cdn.highlight-css:}") String highlightCss,
+            @Value("${blog.cdn.katex-js:}") String katexJs,
+            @Value("${blog.cdn.katex-css:}") String katexCss) {
         this.icp = icp;
         this.icpUrl = icpUrl;
         this.gongan = gongan;
         this.gonganUrl = gonganUrl;
         this.avatar = avatar;
+        this.highlightJs = highlightJs;
+        this.highlightCss = highlightCss;
+        this.katexJs = katexJs;
+        this.katexCss = katexCss;
     }
 
     @GetMapping("/beian")
@@ -41,7 +53,14 @@ public class SiteController {
         return new AboutInfo(avatar);
     }
 
+    @GetMapping("/cdn")
+    public CdnInfo cdn() {
+        return new CdnInfo(highlightJs, highlightCss, katexJs, katexCss);
+    }
+
     public record BeianInfo(String icp, String icpUrl, String gongan, String gonganUrl) {}
 
     public record AboutInfo(String avatar) {}
+
+    public record CdnInfo(String highlightJs, String highlightCss, String katexJs, String katexCss) {}
 }

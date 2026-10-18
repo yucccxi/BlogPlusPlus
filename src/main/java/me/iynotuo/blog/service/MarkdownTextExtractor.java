@@ -29,6 +29,12 @@ public class MarkdownTextExtractor {
     private static final String CODE_BLOCK = "[代码块]";
     private static final String FORMULA = "[公式]";
 
+    /**
+     * 公式的临时占位符：先用不含 Markdown 特殊字符的 token 替换公式，
+     * 等 flexmark 解析完成后再还原成 {@link #FORMULA}，避免 {@code [公式]} 被当作链接定界符解析。
+     */
+    private static final String FORMULA_TOKEN = "\u0001FORMULA\u0001";
+
     private final Parser parser;
 
     public MarkdownTextExtractor() {
@@ -47,14 +53,17 @@ public class MarkdownTextExtractor {
         String text = markdown;
 
         // flexmark 没有内建公式支持，迫不得已用正则了
-        text = text.replaceAll("(?s)\\$\\$.*?\\$\\$", " " + FORMULA + " ");
-        text = text.replaceAll("\\$[^$\\n]+\\$", " " + FORMULA + " ");
+        text = text.replaceAll("(?s)\\$\\$.*?\\$\\$", " " + FORMULA_TOKEN + " ");
+        text = text.replaceAll("\\$[^$\\n]+\\$", " " + FORMULA_TOKEN + " ");
 
         Node document = parser.parse(text);
         StringBuilder sb = new StringBuilder();
         collect(document, sb);
 
-        return sb.toString().replaceAll("\\s+", " ").trim();
+        return sb.toString()
+                .replace(FORMULA_TOKEN, FORMULA)
+                .replaceAll("\\s+", " ")
+                .trim();
     }
 
     /**

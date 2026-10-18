@@ -8,7 +8,7 @@
 |---|---|
 | 后端 | Spring Boot 4.x、Spring JDBC、MySQL、flexmark |
 | 前端 | Vue 3、Vue Router、Vite |
-| 渲染 | marked、highlight.js、KaTeX |
+| 渲染 | marked（本地）、highlight.js + KaTeX（CDN 加载，可在 config.yml 配置） |
 
 ## 功能/TODOs
 
@@ -155,6 +155,14 @@ blog:
     icp-url: "https://beian.miit.gov.cn/#/Integrated/index"
     gongan: "浙公网安备xxxx号"
     gongan-url: "https://beian.mps.gov.cn/#/query/webSearch?code=xxxxxx"
+
+  # ===== 前端 CDN（highlight.js / KaTeX 外部加载）=====
+  # 默认 jsDelivr，国内访问偏慢时可整体替换域名，如 cdn.jsdelivr.net -> cdn.jsdmirror.com
+  cdn:
+    highlight-js: "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/highlight.min.js"
+    highlight-css: "https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.11.1/build/styles/github.min.css"
+    katex-js: "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"
+    katex-css: "https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css"
 ```
 
 > 全文搜索依赖 `posts.raw_text` 列与 `search_cache` 表。新数据库按上文建表即可；已有数据库需先补齐建表语句（`ALTER TABLE posts ADD COLUMN raw_text LONGTEXT DEFAULT NULL;` 并新建 `search_cache` 表），然后带 `--force-cache` 启动一次以重建缓存：
@@ -228,6 +236,7 @@ server {
 - `GET /api/search?q=关键词` — 全文搜索（至少 2 个字符），返回匹配文章、上下文片段及耗时
 - `GET /api/site/beian` — 备案信息（ICP + 公安备案，未配置时字段为空）
 - `GET /api/site/about` — 关于页信息（头像）
+- `GET /api/site/cdn` — 前端 CDN 地址（highlight.js / KaTeX，可在 config.yml 配置）
 
 后台接口（需 `X-Admin-Key` 请求头）：
 
