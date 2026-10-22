@@ -214,6 +214,12 @@ server {
     location /files/ {
         proxy_pass http://127.0.0.1:8080;
     }
+
+    location /assets/ {
+        try_files $uri =404;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
 }
 ```
 
